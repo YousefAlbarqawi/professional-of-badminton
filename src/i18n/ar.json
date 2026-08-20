@@ -1,0 +1,158 @@
+{
+  "common": {
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "save": "حفظ",
+    "delete": "حذف",
+    "retry": "حاول مرة أخرى",
+    "close": "إغلاق",
+    "done": "تم",
+    "loading": "جارٍ التحميل",
+    "whatsapp": "راسل الكابتن",
+    "jd": "د.أ"
+  },
+  "language": {
+    "label": "اللغة",
+    "english": "English",
+    "arabic": "العربية",
+    "switchTitle": "تغيير اللغة",
+    "switchBody": "سيتم إعادة تشغيل التطبيق لتغيير اللغة.",
+    "switchConfirm": "أعد التشغيل الآن",
+    "switchCancel": "ليس الآن"
+  },
+  "auth": {
+    "welcomeTitle": "Professional of Badminton",
+    "signIn": "تسجيل الدخول",
+    "signUp": "إنشاء حساب",
+    "verifyTitle": "تحقق من بريدك الإلكتروني",
+    "verifyBody": "أرسلنا رابط تأكيد إلى {{email}}.",
+    "resend": "إعادة إرسال الرابط",
+    "resendCooldown": "يمكنك إعادة الإرسال بعد {{seconds}} ثانية"
+  },
+  "schedule": {
+    "title": "الجلسات",
+    "empty": "لا توجد جلسات خلال الأيام الخمسة القادمة.",
+    "spotsLeft_zero": "ممتلئة",
+    "spotsLeft_one": "بقي مكان واحد",
+    "spotsLeft_two": "بقي مكانان",
+    "spotsLeft_few": "بقي {{count}} أماكن",
+    "spotsLeft_many": "بقي {{count}} مكانًا",
+    "spotsLeft_other": "بقي {{count}} مكان",
+    "booked": "لديك حجز",
+    "bookedCount": "{{count}} من {{capacity}} محجوز",
+    "closed": "أُغلق الحجز",
+    "cancelledBanner": "تم إلغاء هذه الجلسة",
+    "loadError": "تعذّر تحميل الجدول."
+  },
+  "session": {
+    "reserve": "احجز مكانك",
+    "joinWaitlist": "انضم إلى قائمة الانتظار",
+    "leaveWaitlist": "غادر قائمة الانتظار",
+    "waitlistExplain": "عند توفر مكان يصل الإشعار للجميع في الوقت نفسه، ومن يحجز أولًا يأخذه.",
+    "cancelReservation": "إلغاء حجزي",
+    "cancelWindowClosed": "الإلغاء قبل أقل من 3 ساعات يتم عن طريق الكابتن.",
+    "attendeesLevel0": "{{count}} لاعبين محجوزين.",
+    "attendeesLevel1": "مستويات الحاضرين",
+    "attendeesLevel2": "من سيحضر",
+    "standard": "90 دقيقة",
+    "extended": "150 دقيقة"
+  },
+  "payment": {
+    "chooseMethod": "كيف ستدفع؟",
+    "cash": "نقدًا عند الحضور",
+    "cashSub": "ادفع للكابتن في الصالة",
+    "cliq": "كليك",
+    "cliqSub": "حوّل الآن وأرفق صورة الحوالة",
+    "credit": "استخدم رصيدًا",
+    "creditSub_one": "بقي رصيد واحد، ينتهي في {{date}}",
+    "creditSub_other": "بقي {{count}} أرصدة، تنتهي في {{date}}",
+    "noCredits": "لا يوجد رصيد متاح",
+    "attachScreenshot": "أرفق صورة الحوالة",
+    "replaceScreenshot": "استبدال",
+    "copyAlias": "نسخ اسم كليك",
+    "extendedTopUp": "الاشتراك يغطي هذه الجلسة، وفرق السعر يُدفع للكابتن في الصالة."
+  },
+  "bookings": {
+    "title": "حجوزاتي",
+    "upcoming": "القادمة",
+    "past": "السابقة",
+    "empty": "لا توجد لديك حجوزات بعد.",
+    "goToSchedule": "اعرض الجدول"
+  },
+  "announcements": {
+    "title": "الإعلانات",
+    "empty": "لا توجد إعلانات بعد."
+  },
+  "subscriptions": {
+    "title": "الاشتراكات",
+    "empty": "لا يوجد لديك اشتراك. اسأل الكابتن على واتساب.",
+    "remaining": "بقي {{count}}",
+    "expiringSoon": "ينتهي قريبًا",
+    "history": "السجل"
+  },
+  "validation": {
+    "firstNameRequired": "أدخل اسمك الأول.",
+    "lastNameRequired": "أدخل اسم العائلة.",
+    "emailInvalid": "أدخل بريدًا إلكترونيًا صحيحًا.",
+    "phoneInvalid": "أدخل رقم هاتف صحيحًا.",
+    "passwordWeak": "استخدم 8 خانات على الأقل، مع حرف ورقم.",
+    "passwordMismatch": "كلمتا المرور غير متطابقتين."
+  },
+  "error": {
+    "generic": "حدث خطأ ما. حاول مرة أخرى.",
+    "network": "لا يوجد اتصال بالإنترنت.",
+    "sessionNotFound": "لم تعد هذه الجلسة موجودة.",
+    "sessionCancelled": "تم إلغاء هذه الجلسة.",
+    "sessionFull": "للأسف، حُجز آخر مكان أثناء إتمامك الحجز.",
+    "bookingClosed": "يُغلق الحجز قبل ساعة من بداية الجلسة.",
+    "tooFarAhead": "تُفتح الجلسات قبل 5 أيام.",
+    "alreadyBooked": "لديك مكان محجوز في هذه الجلسة.",
+    "alreadyCancelled": "هذا الحجز مُلغى مسبقًا.",
+    "noCredits": "لم يتبقَّ لديك رصيد.",
+    "confirmEmailFirst": "أكّد بريدك الإلكتروني قبل الحجز.",
+    "accountDeleted": "تم حذف هذا الحساب.",
+    "cancellationWindowClosed": "فات وقت الإلغاء من التطبيق. راسل الكابتن.",
+    "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+    "emailInUse": "هذا البريد الإلكتروني لديه حساب بالفعل.",
+    "uploadFailed": "لم يتم رفع الصورة. حاول مرة أخرى."
+  },
+  "admin": {
+    "error": {
+      "sessionLocked": "أُقفلت هذه الجلسة بعد 7 أيام من انتهائها ولا يمكن تعديلها.",
+      "capacityBelowBookings": "{{booked}} لاعبين محجوزين، و{{courts}} ملاعب تتسع لـ {{capacity}} فقط. احذف لاعبين أولًا.",
+      "coachOnly": "الكابتن وحده يستطيع ذلك.",
+      "subscriptionExpired": "لا يمكن تمديد اشتراك منتهٍ."
+    }
+  },
+  "tiers": {
+    "aPlus": "A+",
+    "a": "A",
+    "aMinus": "A-",
+    "bPlus": "B+",
+    "b": "B",
+    "bMinus": "B-",
+    "cPlus": "C+",
+    "c": "C",
+    "cMinus": "C-",
+    "unrated": "غير مصنّف"
+  },
+  "notifications": {
+    "waitlistTitle": "تفرّغ مكان",
+    "waitlistBody": "{{venue}}، {{time}}. من يحجز أولًا يأخذه.",
+    "announcementTitle": "Professional of Badminton",
+    "announcementBody": "{{preview}}"
+  },
+  "states": {
+    "emptyTitle": "لا يوجد شيء بعد",
+    "errorTitle": "حدث خطأ ما"
+  },
+  "placeholder": {
+    "title": "الأساس جاهز",
+    "body": "المرحلة صفر مكتملة: ألوان التصميم، والمكوّنات الأساسية، ودوال المال والوقت، واللغتان مع دعم كامل للاتجاه من اليمين إلى اليسار.",
+    "sampleSession": "خلدا، {{date}}",
+    "samplePrice": "جلسة عادية",
+    "sampleExtended": "جلسة ممتدة",
+    "emptyExample": "هذه هي حالة الفراغ.",
+    "errorExample": "هذه هي حالة الخطأ."
+  }
+}

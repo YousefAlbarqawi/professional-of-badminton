@@ -1,0 +1,10 @@
+node_modules/
+.expo/
+dist/
+assets/
+supabase/.branches/
+supabase/.temp/
+# Authored documents, not code. Prettier must not reflow these.
+BUILD-SPEC.md
+CLAUDE-CODE-PROMPTS.md
+CLAUDE.md

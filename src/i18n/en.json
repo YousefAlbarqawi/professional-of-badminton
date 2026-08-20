@@ -1,0 +1,158 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "retry": "Try again",
+    "close": "Close",
+    "done": "Done",
+    "loading": "Loading",
+    "whatsapp": "Message the coach",
+    "jd": "JD"
+  },
+  "language": {
+    "label": "Language",
+    "english": "English",
+    "arabic": "العربية",
+    "switchTitle": "Change language",
+    "switchBody": "The app will restart to change language.",
+    "switchConfirm": "Restart now",
+    "switchCancel": "Not now"
+  },
+  "auth": {
+    "welcomeTitle": "Professional of Badminton",
+    "signIn": "Sign in",
+    "signUp": "Create account",
+    "verifyTitle": "Check your email",
+    "verifyBody": "We sent a confirmation link to {{email}}.",
+    "resend": "Resend the link",
+    "resendCooldown": "You can resend in {{seconds}} seconds"
+  },
+  "schedule": {
+    "title": "Sessions",
+    "empty": "No sessions in the next 5 days.",
+    "spotsLeft_zero": "Full",
+    "spotsLeft_one": "1 spot left",
+    "spotsLeft_two": "2 spots left",
+    "spotsLeft_few": "{{count}} spots left",
+    "spotsLeft_many": "{{count}} spots left",
+    "spotsLeft_other": "{{count}} spots left",
+    "booked": "You are booked",
+    "bookedCount": "{{count}} of {{capacity}} booked",
+    "closed": "Booking closed",
+    "cancelledBanner": "This session was cancelled",
+    "loadError": "Could not load the schedule."
+  },
+  "session": {
+    "reserve": "Reserve a spot",
+    "joinWaitlist": "Join the waiting list",
+    "leaveWaitlist": "Leave the waiting list",
+    "waitlistExplain": "When a spot opens everyone on the list is told at once. The first to reserve gets it.",
+    "cancelReservation": "Cancel my reservation",
+    "cancelWindowClosed": "Cancellations within 3 hours are handled by the coach.",
+    "attendeesLevel0": "{{count}} players booked.",
+    "attendeesLevel1": "Levels of who is coming",
+    "attendeesLevel2": "Who is coming",
+    "standard": "90 minutes",
+    "extended": "150 minutes"
+  },
+  "payment": {
+    "chooseMethod": "How will you pay?",
+    "cash": "Cash on arrival",
+    "cashSub": "Pay the coach at the venue",
+    "cliq": "CliQ",
+    "cliqSub": "Transfer now and attach a screenshot",
+    "credit": "Use a credit",
+    "creditSub_one": "1 credit left, expires {{date}}",
+    "creditSub_other": "{{count}} credits left, expires {{date}}",
+    "noCredits": "No credits available",
+    "attachScreenshot": "Attach screenshot",
+    "replaceScreenshot": "Replace",
+    "copyAlias": "Copy CliQ alias",
+    "extendedTopUp": "Your credit covers this session. The price difference is paid to the coach at the venue."
+  },
+  "bookings": {
+    "title": "My bookings",
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "empty": "You have no reservations yet.",
+    "goToSchedule": "See the schedule"
+  },
+  "announcements": {
+    "title": "Announcements",
+    "empty": "No announcements yet."
+  },
+  "subscriptions": {
+    "title": "Subscriptions",
+    "empty": "You do not have a subscription. Ask the coach on WhatsApp.",
+    "remaining": "{{count}} left",
+    "expiringSoon": "Expires soon",
+    "history": "History"
+  },
+  "validation": {
+    "firstNameRequired": "Enter your first name.",
+    "lastNameRequired": "Enter your last name.",
+    "emailInvalid": "Enter a valid email address.",
+    "phoneInvalid": "Enter a valid phone number.",
+    "passwordWeak": "Use at least 8 characters, with a letter and a number.",
+    "passwordMismatch": "The passwords do not match."
+  },
+  "error": {
+    "generic": "Something went wrong. Try again.",
+    "network": "No internet connection.",
+    "sessionNotFound": "That session no longer exists.",
+    "sessionCancelled": "This session was cancelled.",
+    "sessionFull": "Sorry, the last spot went while you were booking.",
+    "bookingClosed": "Booking closed one hour before the session.",
+    "tooFarAhead": "Sessions open 5 days ahead.",
+    "alreadyBooked": "You already have a spot in this session.",
+    "alreadyCancelled": "That reservation was already cancelled.",
+    "noCredits": "You have no credits left.",
+    "confirmEmailFirst": "Confirm your email before booking.",
+    "accountDeleted": "This account has been deleted.",
+    "cancellationWindowClosed": "It is too late to cancel here. Message the coach.",
+    "invalidCredentials": "Email or password is wrong.",
+    "emailInUse": "That email already has an account.",
+    "uploadFailed": "The screenshot did not upload. Try again."
+  },
+  "admin": {
+    "error": {
+      "sessionLocked": "This session locked 7 days after it ended and cannot be edited.",
+      "capacityBelowBookings": "{{booked}} players are booked but {{courts}} courts hold only {{capacity}}. Remove players first.",
+      "coachOnly": "Only the coach can do this.",
+      "subscriptionExpired": "An expired subscription cannot be extended."
+    }
+  },
+  "tiers": {
+    "aPlus": "A+",
+    "a": "A",
+    "aMinus": "A-",
+    "bPlus": "B+",
+    "b": "B",
+    "bMinus": "B-",
+    "cPlus": "C+",
+    "c": "C",
+    "cMinus": "C-",
+    "unrated": "Unrated"
+  },
+  "notifications": {
+    "waitlistTitle": "A spot opened",
+    "waitlistBody": "{{venue}}, {{time}}. First to reserve gets it.",
+    "announcementTitle": "Professional of Badminton",
+    "announcementBody": "{{preview}}"
+  },
+  "states": {
+    "emptyTitle": "Nothing here yet",
+    "errorTitle": "Something went wrong"
+  },
+  "placeholder": {
+    "title": "Foundation ready",
+    "body": "Phase 0 is in place: theme tokens, typed primitives, money and time helpers, and both languages with full right-to-left support.",
+    "sampleSession": "Khalda, {{date}}",
+    "samplePrice": "Standard session",
+    "sampleExtended": "Extended session",
+    "emptyExample": "This is the empty state.",
+    "errorExample": "This is the error state."
+  }
+}

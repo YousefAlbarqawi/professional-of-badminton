@@ -1,0 +1,53 @@
+{
+  "name": "professional-of-badminton",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:push": "supabase db push",
+    "types:gen": "supabase gen types typescript --local > src/types/database.ts"
+  },
+  "dependencies": {
+    "@expo-google-fonts/cairo": "^0.4.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "babel-preset-expo": "~57.0.0",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
+    "expo": "~57.0.14",
+    "expo-font": "~57.0.1",
+    "expo-localization": "~57.0.1",
+    "expo-splash-screen": "~57.0.7",
+    "expo-status-bar": "~57.0.1",
+    "expo-updates": "~57.0.15",
+    "i18next": "^26.3.6",
+    "react": "19.2.3",
+    "react-i18next": "^17.0.11",
+    "react-native": "0.86.2"
+  },
+  "devDependencies": {
+    "@testing-library/react-native": "^14.0.1",
+    "@types/jest": "^29.5.14",
+    "@types/react": "~19.2.2",
+    "eslint": "^9.39.1",
+    "eslint-config-expo": "^57.0.1",
+    "eslint-config-prettier": "^10.1.8",
+    "jest": "~29.7.0",
+    "jest-expo": "~57.0.4",
+    "prettier": "^3.6.2",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.46.4"
+  }
+}
