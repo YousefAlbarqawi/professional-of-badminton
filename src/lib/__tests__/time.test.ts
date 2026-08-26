@@ -3,17 +3,24 @@ import {
   TZ,
   ammanDayKey,
   ammanEndOfDay,
+  ammanMonthKey,
   ammanStartOfDay,
   bookingWindowEnd,
   cancellationCutoff,
+  dayKeyToCalendarDate,
+  formatClockTime,
+  formatMonthLabel,
   formatSessionDate,
   formatSessionTime,
   formatSessionTimeRange,
   isWithinCancellationWindow,
   isWithinReservationWindow,
   nowInAmman,
+  formatWeekLabel,
+  monthKeyToDate,
   reservationCutoff,
   reviewDeadline,
+  shiftMonthKey,
   toAmman,
 } from '../time';
 
@@ -205,6 +212,21 @@ describe('ammanDayKey', () => {
   });
 });
 
+describe('dayKeyToCalendarDate', () => {
+  it('reads the local calendar fields, not an Amman-converted instant', () => {
+    const date = dayKeyToCalendarDate('2026-11-20');
+    expect(date.getFullYear()).toBe(2026);
+    expect(date.getMonth()).toBe(10);
+    expect(date.getDate()).toBe(20);
+  });
+
+  it('handles a single digit month and day', () => {
+    const date = dayKeyToCalendarDate('2026-01-05');
+    expect(date.getMonth()).toBe(0);
+    expect(date.getDate()).toBe(5);
+  });
+});
+
 describe('formatSessionTime', () => {
   it('formats English as 12 hour with AM and PM', () => {
     expect(formatSessionTime(SESSION_START, 'en')).toBe('7:00 PM');
@@ -262,5 +284,97 @@ describe('formatSessionTimeRange', () => {
     expect(formatSessionTimeRange(SESSION_START, SESSION_END, 'ar')).toBe(
       '7:00 مساءً – 8:30 مساءً',
     );
+  });
+});
+
+/**
+ * The report month, BUILD-SPEC 15.12. A month is a label on a calendar rather
+ * than a span of time, which is why `shiftMonthKey` does arithmetic on the
+ * key's own integers: 31 January plus one month has no answer as a Date, and
+ * needs none as a key.
+ */
+describe('ammanMonthKey', () => {
+  it('is the Amman month, not the UTC month', () => {
+    // 23:30 UTC on 31 July is 02:30 Amman on 1 August.
+    expect(ammanMonthKey(new Date('2026-07-31T23:30:00.000Z'))).toBe('2026-08');
+    expect(ammanMonthKey(SESSION_START)).toBe('2026-08');
+  });
+});
+
+describe('shiftMonthKey', () => {
+  it('steps back and forward a month at a time', () => {
+    expect(shiftMonthKey('2026-08', -1)).toBe('2026-07');
+    expect(shiftMonthKey('2026-08', 1)).toBe('2026-09');
+  });
+
+  it('crosses a year boundary in both directions', () => {
+    expect(shiftMonthKey('2026-01', -1)).toBe('2025-12');
+    expect(shiftMonthKey('2026-12', 1)).toBe('2027-01');
+    expect(shiftMonthKey('2026-06', -18)).toBe('2024-12');
+  });
+
+  it('is its own inverse', () => {
+    expect(shiftMonthKey(shiftMonthKey('2026-03', -1), 1)).toBe('2026-03');
+  });
+
+  it('never produces a 31 January problem', () => {
+    // A Date would have answered "3 March" here.
+    expect(shiftMonthKey('2026-01', 1)).toBe('2026-02');
+  });
+
+  it('refuses anything that is not a month key', () => {
+    expect(() => shiftMonthKey('2026-13', 1)).toThrow();
+    expect(() => shiftMonthKey('August', 1)).toThrow();
+  });
+
+  it('orders as a string, which is what the picker compares', () => {
+    expect('2026-08' > '2026-07').toBe(true);
+    expect('2026-01' > '2025-12').toBe(true);
+  });
+});
+
+describe('monthKeyToDate', () => {
+  it('is the first of the month, which is what the report RPCs take', () => {
+    expect(monthKeyToDate('2026-08')).toBe('2026-08-01');
+  });
+});
+
+describe('formatMonthLabel', () => {
+  it('uses English month names', () => {
+    expect(formatMonthLabel('2026-08', 'en')).toBe('August 2026');
+  });
+
+  it('uses Levantine month names and Western digits', () => {
+    // BUILD-SPEC 16.1, and the C1 conflict at the end of BUILD-SPEC.md.
+    expect(formatMonthLabel('2026-08', 'ar')).toBe('آب 2026');
+    expect(formatMonthLabel('2026-01', 'ar')).toBe('كانون الثاني 2026');
+  });
+});
+
+describe('formatWeekLabel', () => {
+  it('renders the Sunday a week is keyed by', () => {
+    expect(formatWeekLabel('2026-07-05', 'en')).toBe('5 July');
+    expect(formatWeekLabel('2026-07-05', 'ar')).toBe('5 تموز');
+  });
+
+  it('reads the day in Amman, so a key never slips backwards', () => {
+    expect(formatWeekLabel('2026-08-02', 'en')).toBe('2 August');
+  });
+});
+
+describe('formatClockTime', () => {
+  it('renders a template start time the way every other time renders', () => {
+    expect(formatClockTime('19:00:00', 'en')).toBe('7:00 PM');
+    expect(formatClockTime('19:00:00', 'ar')).toBe('7:00 مساءً');
+    expect(formatClockTime('09:30:00', 'en')).toBe('9:30 AM');
+  });
+
+  it('handles both noons', () => {
+    expect(formatClockTime('12:00', 'en')).toBe('12:00 PM');
+    expect(formatClockTime('00:00', 'en')).toBe('12:00 AM');
+  });
+
+  it('refuses an hour that is not one', () => {
+    expect(() => formatClockTime('25:00', 'en')).toThrow();
   });
 });

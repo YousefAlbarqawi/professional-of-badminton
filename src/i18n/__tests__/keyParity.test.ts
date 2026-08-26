@@ -84,13 +84,53 @@ describe('numerals', () => {
 });
 
 describe('Arabic plurals', () => {
-  it('carries all six forms for counted strings', () => {
-    // Arabic has six plural forms and section 16.1 forbids faking it with an
-    // `if`. i18next resolves these through Intl.PluralRules.
-    for (const form of ['zero', 'one', 'two', 'few', 'many', 'other']) {
-      expect(Object.keys(ar.schedule)).toContain(`spotsLeft_${form}`);
-      expect(Object.keys(en.schedule)).toContain(`spotsLeft_${form}`);
+  const FORMS = ['zero', 'one', 'two', 'few', 'many', 'other'] as const;
+
+  /**
+   * Every base key that carries at least one plural suffix, in either deck.
+   * A counted string is discovered rather than listed, so adding one to the
+   * deck brings it under this rule automatically — which is the point. The
+   * previous version of this suite named `schedule.spotsLeft` alone, and five
+   * families shipped with only English's two forms in Arabic as a result.
+   */
+  const pluralFamilies = (): string[] => {
+    const bases = new Set<string>();
+    for (const key of [...enKeys, ...arKeys]) {
+      for (const form of FORMS) {
+        if (key.endsWith(`_${form}`)) bases.add(key.slice(0, -form.length - 1));
+      }
     }
+    return [...bases].sort();
+  };
+
+  it('finds the counted strings', () => {
+    // A guard on the guard: if the decks ever stop using suffixes, the loops
+    // below would pass by having nothing to check.
+    expect(pluralFamilies().length).toBeGreaterThan(0);
+  });
+
+  it.each(pluralFamilies())('carries all six forms for %s', (base) => {
+    // Arabic has six plural forms and section 16.1 forbids faking it with an
+    // `if`. i18next resolves these through Intl.PluralRules and falls back to
+    // `_other` when a form is absent, so a missing `_two` is not an error at
+    // runtime — it is silently wrong Arabic. Hence a test.
+    for (const form of FORMS) {
+      expect({ deck: 'ar', key: `${base}_${form}` }).toEqual({
+        deck: 'ar',
+        key: arKeys.find((key) => key === `${base}_${form}`),
+      });
+      expect({ deck: 'en', key: `${base}_${form}` }).toEqual({
+        deck: 'en',
+        key: enKeys.find((key) => key === `${base}_${form}`),
+      });
+    }
+  });
+
+  it.each(pluralFamilies())('has no unsuffixed fallback for %s', (base) => {
+    // i18next's candidate list ends with the bare key. One left in the deck
+    // would mask a missing form rather than letting this suite see it.
+    expect(enKeys).not.toContain(base);
+    expect(arKeys).not.toContain(base);
   });
 });
 

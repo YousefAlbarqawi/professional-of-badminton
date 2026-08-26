@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Reset your password — Professional of Badminton</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #111111;
+    --card: #1b1b1b;
+    --border: #2c2c2c;
+    --text: #f2f2f2;
+    --text-secondary: #a6a6a6;
+    --accent: #a8d5ba;
+    --danger: #e0857a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100%;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px;
+  }
+  h1 {
+    font-size: 20px;
+    margin: 0 0 8px;
+  }
+  p.subtitle {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin: 0 0 24px;
+    line-height: 1.5;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  input[type="password"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 16px;
+    margin-bottom: 16px;
+  }
+  input[type="password"]:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  button {
+    width: 100%;
+    background: var(--accent);
+    color: #111111;
+    border: none;
+    border-radius: 10px;
+    padding: 13px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .error {
+    color: var(--danger);
+    font-size: 13px;
+    margin: -8px 0 16px;
+  }
+  .success-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+  }
+  .lang-switch {
+    display: flex;
+    justify-content: flex-end;
+    max-width: 420px;
+    width: 100%;
+    margin: 0 auto -8px;
+  }
+  .lang-switch button {
+    all: unset;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 13px;
+    padding: 6px 8px;
+  }
+  .lang-switch button[aria-current="true"] {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .stack { display: flex; flex-direction: column; }
+  a.open-app {
+    display: inline-block;
+    margin-top: 16px;
+    color: var(--accent);
+    font-size: 14px;
+    text-decoration: none;
+  }
+  [dir="rtl"] .lang-switch { justify-content: flex-start; }
+</style>
+</head>
+<body>
+  <div class="stack" style="width: 100%; align-items: center;">
+    <div class="lang-switch" id="langSwitch">
+      <button type="button" id="langEn" aria-current="true">English</button>
+      <span style="color: var(--border); padding: 6px 2px;">·</span>
+      <button type="button" id="langAr">العربية</button>
+    </div>
+    <div class="card" id="card" role="main"></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+  (function () {
+    "use strict";
+
+    // 8 or more characters, at least one letter and one digit — the same rule
+    // src/features/auth/schemas.ts enforces in the app, so a password good
+    // enough here is good enough there too.
+    var PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+
+    var STRINGS = {
+      en: {
+        dir: "ltr",
+        title: "Reset your password",
+        subtitle: "Choose a new password for your Professional of Badminton account.",
+        passwordLabel: "New password",
+        confirmLabel: "Confirm new password",
+        submit: "Set new password",
+        submitting: "Setting password…",
+        weak: "At least 8 characters, with a letter and a number.",
+        mismatch: "Passwords do not match.",
+        genericError: "Something went wrong. Please try again.",
+        invalidTitle: "This link has expired",
+        invalidBody: "Password reset links are single use and expire quickly. Go back to the app and request a new one from the sign-in screen.",
+        notConfiguredTitle: "Not available yet",
+        notConfiguredBody: "This page has not been switched on yet. Please contact the academy on WhatsApp.",
+        successTitle: "Password changed",
+        successBody: "Your password has been updated. Return to the app and sign in with your new password.",
+        openApp: "Open the app",
+      },
+      ar: {
+        dir: "rtl",
+        title: "إعادة تعيين كلمة المرور",
+        subtitle: "اختر كلمة مرور جديدة لحسابك في Professional of Badminton.",
+        passwordLabel: "كلمة المرور الجديدة",
+        confirmLabel: "تأكيد كلمة المرور الجديدة",
+        submit: "تعيين كلمة المرور",
+        submitting: "جارٍ الحفظ…",
+        weak: "8 أحرف على الأقل، تحتوي على حرف ورقم.",
+        mismatch: "كلمتا المرور غير متطابقتين.",
+        genericError: "حدث خطأ ما. حاول مرة أخرى.",
+        invalidTitle: "انتهت صلاحية هذا الرابط",
+        invalidBody: "روابط إعادة تعيين كلمة المرور تُستخدم مرة واحدة وتنتهي صلاحيتها بسرعة. عد إلى التطبيق واطلب رابطًا جديدًا من شاشة تسجيل الدخول.",
+        notConfiguredTitle: "غير متاح بعد",
+        notConfiguredBody: "لم يتم تفعيل هذه الصفحة بعد. يرجى التواصل مع الأكاديمية عبر واتساب.",
+        successTitle: "تم تغيير كلمة المرور",
+        successBody: "تم تحديث كلمة المرور. عد إلى التطبيق وسجّل الدخول بكلمة المرور الجديدة.",
+        openApp: "افتح التطبيق",
+      },
+    };
+
+    var lang = "en";
+    var card = document.getElementById("card");
+    var supabaseUrl = window.POB_SUPABASE_URL || "";
+    var anonKey = window.POB_SUPABASE_ANON_KEY || "";
+
+    function parseHashParams() {
+      var hash = window.location.hash || "";
+      if (hash.charAt(0) === "#") hash = hash.slice(1);
+      var params = new URLSearchParams(hash);
+      // 23.3-adjacent: the tokens must not linger in the visible URL or in
+      // browser history once read.
+      if (hash !== "") {
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+      return params;
+    }
+
+    var hashParams = parseHashParams();
+
+    function t(key) {
+      return STRINGS[lang][key];
+    }
+
+    function renderNotConfigured() {
+      card.innerHTML =
+        "<h1>" + t("notConfiguredTitle") + "</h1>" +
+        '<p class="subtitle">' + t("notConfiguredBody") + "</p>";
+    }
+
+    function renderInvalid() {
+      card.innerHTML =
+        "<h1>" + t("invalidTitle") + "</h1>" +
+        '<p class="subtitle">' + t("invalidBody") + "</p>";
+    }
+
+    function renderSuccess() {
+      card.innerHTML =
+        '<div class="success-icon">✓</div>' +
+        "<h1>" + t("successTitle") + "</h1>" +
+        '<p class="subtitle">' + t("successBody") + "</p>" +
+        '<a class="open-app" href="pob://">' + t("openApp") + "</a>";
+    }
+
+    function renderForm(accessToken) {
+      card.innerHTML =
+        "<h1>" + t("title") + "</h1>" +
+        '<p class="subtitle">' + t("subtitle") + "</p>" +
+        '<form id="resetForm">' +
+        '<label for="pw1">' + t("passwordLabel") + "</label>" +
+        '<input type="password" id="pw1" autocomplete="new-password" required />' +
+        '<label for="pw2">' + t("confirmLabel") + "</label>" +
+        '<input type="password" id="pw2" autocomplete="new-password" required />' +
+        '<p class="error" id="formError" hidden></p>' +
+        '<button type="submit" id="submitBtn">' + t("submit") + "</button>" +
+        "</form>";
+
+      var form = document.getElementById("resetForm");
+      var errorEl = document.getElementById("formError");
+      var submitBtn = document.getElementById("submitBtn");
+
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        var pw1 = document.getElementById("pw1").value;
+        var pw2 = document.getElementById("pw2").value;
+
+        if (!PASSWORD_PATTERN.test(pw1)) {
+          errorEl.textContent = t("weak");
+          errorEl.hidden = false;
+          return;
+        }
+        if (pw1 !== pw2) {
+          errorEl.textContent = t("mismatch");
+          errorEl.hidden = false;
+          return;
+        }
+
+        errorEl.hidden = true;
+        submitBtn.disabled = true;
+        submitBtn.textContent = t("submitting");
+
+        fetch(supabaseUrl + "/auth/v1/user", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: anonKey,
+            Authorization: "Bearer " + accessToken,
+          },
+          body: JSON.stringify({ password: pw1 }),
+        })
+          .then(function (response) {
+            if (response.ok) {
+              renderSuccess();
+              return;
+            }
+            return response.json().catch(function () { return {}; }).then(function (body) {
+              errorEl.textContent = body.msg || body.error_description || t("genericError");
+              errorEl.hidden = false;
+              submitBtn.disabled = false;
+              submitBtn.textContent = t("submit");
+            });
+          })
+          .catch(function () {
+            errorEl.textContent = t("genericError");
+            errorEl.hidden = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = t("submit");
+          });
+      });
+    }
+
+    function render() {
+      document.documentElement.lang = lang;
+      document.documentElement.dir = t("dir");
+      document.getElementById("langEn").setAttribute("aria-current", String(lang === "en"));
+      document.getElementById("langAr").setAttribute("aria-current", String(lang === "ar"));
+
+      if (supabaseUrl === "" || anonKey === "") {
+        renderNotConfigured();
+        return;
+      }
+
+      var accessToken = hashParams.get("access_token");
+      var type = hashParams.get("type");
+      var hashError = hashParams.get("error");
+
+      if (hashError || !accessToken || type !== "recovery") {
+        renderInvalid();
+        return;
+      }
+
+      renderForm(accessToken);
+    }
+
+    document.getElementById("langEn").addEventListener("click", function () {
+      lang = "en";
+      render();
+    });
+    document.getElementById("langAr").addEventListener("click", function () {
+      lang = "ar";
+      render();
+    });
+
+    render();
+  })();
+  </script>
+</body>
+</html>

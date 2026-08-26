@@ -9,7 +9,7 @@
     "noUnusedParameters": true,
     "exactOptionalPropertyTypes": true,
     "resolveJsonModule": true,
-    "types": ["jest"],
+    "types": ["jest", "node"],
     "paths": {
       "@/*": ["./src/*"]
     }

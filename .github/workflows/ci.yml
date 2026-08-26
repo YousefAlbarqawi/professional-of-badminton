@@ -1,0 +1,54 @@
+# BUILD-SPEC 16.3: "`en.json` and `ar.json` must always have identical key sets;
+# CI fails if they diverge." That check lives in
+# `src/i18n/__tests__/keyParity.test.ts`, which needs something to run it — this.
+#
+# 19.3's definition of done is the rest of the job: TypeScript compiles with no
+# errors, ESLint passes, tests pass. All three run on every push and every pull
+# request, so a phase cannot be called done on a machine where they happen to.
+#
+# The integration suite (`npm run test:db`) is deliberately not here. It needs a
+# local Supabase stack, which needs Docker and about a minute of startup, and
+# section 19.1 scopes it to a developer's machine. See OPEN-ITEMS.md.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: typecheck, lint, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # The string decks first: it is the cheapest check and the one 16.3 names.
+      - name: String deck parity
+        run: npx jest src/i18n --ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format
+        run: npm run format:check
+
+      - name: Test
+        run: npm test -- --ci

@@ -50,3 +50,6 @@ supabase/.temp/
 # tooling caches
 .eslintcache
 coverage/
+
+# playwright mcp session artifacts
+.playwright-mcp/

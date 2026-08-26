@@ -1,3 +1,11 @@
+import type * as ReactModule from 'react';
+
+// A Supabase client is constructed at module scope in src/lib/supabase.ts and
+// refuses to be built without a URL and a key. These are the local stack's
+// defaults; no test reaches the network, but the module has to load.
+process.env.EXPO_PUBLIC_SUPABASE_URL ??= 'http://127.0.0.1:54321';
+process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??= 'test-anon-key';
+
 // Fonts are native modules; unit tests only need the pure logic underneath.
 jest.mock('expo-font');
 
@@ -14,3 +22,157 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 jest.mock('expo-localization', () => ({
   getLocales: (): { languageCode: string | null }[] => [{ languageCode: 'en' }],
 }));
+
+// The keychain, in memory. Chunking is tested against its own fake backend in
+// src/lib/__tests__/secureStorage.test.ts; this is only so the module loads.
+jest.mock('expo-secure-store', () => {
+  const store = new Map<string, string>();
+  return {
+    AFTER_FIRST_UNLOCK: 'afterFirstUnlock',
+    WHEN_UNLOCKED: 'whenUnlocked',
+    getItemAsync: jest.fn(async (key: string) => store.get(key) ?? null),
+    setItemAsync: jest.fn(async (key: string, value: string) => {
+      store.set(key, value);
+    }),
+    deleteItemAsync: jest.fn(async (key: string) => {
+      store.delete(key);
+    }),
+  };
+});
+
+// Section 18's surface, in memory. 14.12 reads the permission status, the
+// waiting list asks for it (18), and phase 8 registers a token, sets a channel
+// and listens for taps. The defaults here are a phone that has already said
+// yes, because that is the state most tests want to be in; a suite that cares
+// about a refusal overrides `getPermissionsAsync` itself.
+jest.mock('expo-notifications', () => ({
+  AndroidImportance: { HIGH: 4, DEFAULT: 3 },
+  getPermissionsAsync: jest.fn(async () => ({
+    status: 'granted',
+    granted: true,
+    canAskAgain: true,
+  })),
+  requestPermissionsAsync: jest.fn(async () => ({
+    status: 'granted',
+    granted: true,
+    canAskAgain: true,
+  })),
+  getExpoPushTokenAsync: jest.fn(async () => ({ data: 'ExponentPushToken[test]' })),
+  setNotificationChannelAsync: jest.fn(async () => undefined),
+  setNotificationHandler: jest.fn(),
+  getLastNotificationResponseAsync: jest.fn(async () => null),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+}));
+
+// Sentry's native module. BUILD-SPEC 23.4 wires it for crashes; no test sends
+// anything anywhere, and `src/lib/__tests__/monitoring.test.ts` asserts on the
+// options this mock records rather than on Sentry's behaviour.
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(),
+  captureException: jest.fn(),
+  wrap: <T>(component: T): T => component,
+}));
+
+// The language switch reloads the app to apply a direction change.
+jest.mock('expo-updates', () => ({
+  reloadAsync: jest.fn(async () => undefined),
+}));
+
+// A35's picker (DateField) is a native module. The mock is a bare host View
+// forwarding every prop it was given (`testID`, `onChange`, `minimumDate`, …),
+// so RNTL's `fireEvent(getByTestId(...), 'change', event, date)` reaches the
+// real component's own handler exactly as the native module would call it,
+// and a test can assert on anything DateField passed through — nothing about
+// the wheel itself is faked, only its native rendering.
+jest.mock('@react-native-community/datetimepicker', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const React: typeof ReactModule = require('react');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { View } = require('react-native');
+
+  const DateTimePicker = (
+    props: Record<string, unknown>,
+  ): ReactModule.ReactElement => React.createElement(View, props);
+
+  return { __esModule: true, default: DateTimePicker };
+});
+
+// react-native-safe-area-context ships a Jest mock as .tsx, which this preset
+// does not transform, and it omits the contexts React Navigation's headers read.
+// A minimal stand-in with real contexts is simpler than either.
+jest.mock('react-native-safe-area-context', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const React: typeof ReactModule = require('react');
+  const insets = { top: 0, right: 0, bottom: 0, left: 0 };
+  const frame = { x: 0, y: 0, width: 390, height: 844 };
+
+  const SafeAreaInsetsContext = React.createContext(insets);
+  const SafeAreaFrameContext = React.createContext(frame);
+
+  return {
+    SafeAreaInsetsContext,
+    SafeAreaFrameContext,
+    SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
+    SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
+    SafeAreaContext: SafeAreaInsetsContext,
+    useSafeAreaInsets: () => insets,
+    useSafeAreaFrame: () => frame,
+    initialWindowMetrics: { insets, frame },
+    withSafeAreaInsets:
+      (Component: React.ComponentType<Record<string, unknown>>) =>
+      (props: Record<string, unknown>) =>
+        React.createElement(Component, { ...props, insets }),
+  };
+});
+
+// The court board is the only screen with gestures (BUILD-SPEC 2.1).
+// Gesture handler ships its own Jest setup, which registers the mock
+// components `GestureDetector` renders.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+require('react-native-gesture-handler/jestSetup');
+
+// `GestureDetector` wires a gesture to the UI thread through Reanimated's
+// event machinery, which the mock below deliberately does not reproduce. It
+// renders its child either way, so under Jest it is its child. The drag itself
+// is not testable through the renderer; its hit test is a pure function and is
+// tested directly in src/features/matchmaking/__tests__/boardLayout.test.ts.
+jest.mock('react-native-gesture-handler', () => {
+  const actual = jest.requireActual<Record<string, unknown>>('react-native-gesture-handler');
+  return {
+    ...actual,
+    GestureDetector: ({ children }: { children: ReactModule.ReactNode }) => children,
+  };
+});
+
+// Reanimated's own `mock` entry point reaches through react-native-worklets
+// into a native module that does not exist under Jest, and every suite that
+// so much as imports a screen dies on it. The court board uses four things
+// from the library, so those four are what is replaced here: a shared value
+// is a plain box, an animated style is its worklet run once on the JS thread,
+// a spring resolves instantly, and `Animated.View` is a `View`.
+jest.mock('react-native-reanimated', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const React: typeof ReactModule = require('react');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { View } = require('react-native');
+
+  const passThrough = <T>(value: T): T => value;
+  const AnimatedView = React.forwardRef<unknown, Record<string, unknown>>((props, ref) =>
+    React.createElement(View, { ...props, ref }),
+  );
+  AnimatedView.displayName = 'Animated.View';
+
+  return {
+    __esModule: true,
+    default: { View: AnimatedView, createAnimatedComponent: passThrough },
+    View: AnimatedView,
+    createAnimatedComponent: passThrough,
+    useSharedValue: <T>(initial: T) => ({ value: initial }),
+    useAnimatedStyle: (factory: () => unknown) => factory(),
+    useDerivedValue: (factory: () => unknown) => ({ value: factory() }),
+    withSpring: passThrough,
+    withTiming: passThrough,
+    runOnJS: passThrough,
+    runOnUI: passThrough,
+  };
+});

@@ -18,6 +18,8 @@ module.exports = defineConfig([
       'coverage/**',
       'assets/**',
       'supabase/functions/**',
+      // Written by `supabase start`. Not ours, already gitignored, and Deno.
+      'supabase/.temp/**',
     ],
   },
   {

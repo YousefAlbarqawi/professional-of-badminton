@@ -128,6 +128,8 @@ Fixed. Do not substitute.
 | Lists | **@shopify/flash-list** | Any list that can exceed 20 rows |
 | Drag and drop | **react-native-gesture-handler** + **react-native-reanimated** | Court board only |
 | Images | **expo-image-picker**, **expo-image-manipulator** | CliQ screenshot capture and compression |
+| Haptics | **expo-haptics** | 17.4's two triggers: booking success, court board swaps. Amendment to this table, phase 10 — see OPEN-ITEMS.md |
+| Dates, picking one | **@react-native-community/datetimepicker** | A35's date fields: 15.6's create form, 15.9's grant form, and the extend sheet. Amendment to this table, phase 10 — see OPEN-ITEMS.md |
 | Testing | **Jest** + **@testing-library/react-native**; **Vitest** for pure logic packages if separated; **Maestro** for two e2e smoke flows | See Section 19 |
 | Linting | ESLint + `@typescript-eslint`, Prettier | Enforced in CI |
 
@@ -301,6 +303,7 @@ Every business decision the client has made. Numbered for reference. If the code
 | D30 | Capacity is hard. No overselling under any circumstance. |
 | D31 | Cancelling a whole session sends **no** push notification to players. |
 | D32 | When the coach cancels a session, CliQ money is assumed reversed outside the app. Credits are returned automatically. |
+| D81 | 15.2's "Move to another session" (added phase 10, `admin_move_booking`, migration 0037): price does not re-resolve — `expected_fils` and `paid_fils` carry across unchanged. A credit follows him — the new booking reuses the old one's `credit_txn_id` rather than a refund-and-respend pair. Target capacity is hard, exactly as D30. |
 
 ### 3.4 Payments
 
@@ -930,6 +933,58 @@ CREATE INDEX idx_audit_entity ON audit_log(entity, entity_id, created_at DESC);
 
 Audit rows are written by triggers on `bookings`, `player_subscriptions`, `credit_transactions`, `balance_entries`, `session_instances`, and `profiles` (role, visibility, tier, custom rate changes only).
 
+```sql
+-- ─────────────────────────────────────────────────────────
+-- THE PUSH OUTBOX
+-- Added by the phase 8 agent under the section 0 rule 4 procedure. See A66.
+--
+-- Section 8.4 step 4 says to "insert a push job row for each, then call the
+-- send-push edge function", and defines no such table. These are it.
+-- ─────────────────────────────────────────────────────────
+CREATE TYPE push_job_kind AS ENUM ('waitlist_spot', 'announcement');
+
+CREATE TABLE push_jobs (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  kind            push_job_kind NOT NULL,
+  session_id      uuid REFERENCES session_instances(id) ON DELETE CASCADE,
+  announcement_id uuid REFERENCES announcements(id) ON DELETE CASCADE,
+  recipient_ids   uuid[],          -- null = every registered device
+  payload         jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  claimed_at      timestamptz,
+  sent_at         timestamptz,
+  attempts        integer NOT NULL DEFAULT 0,
+  device_count    integer NOT NULL DEFAULT 0,
+  last_error      text,
+  CHECK (
+    (kind = 'waitlist_spot' AND session_id IS NOT NULL AND announcement_id IS NULL)
+    OR (kind = 'announcement' AND announcement_id IS NOT NULL AND session_id IS NULL)
+  )
+);
+CREATE INDEX idx_push_jobs_pending ON push_jobs(created_at) WHERE sent_at IS NULL;
+
+CREATE TABLE push_deliveries (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_id     uuid NOT NULL REFERENCES push_jobs(id) ON DELETE CASCADE,
+  token      text NOT NULL,
+  ticket_id  text,
+  status     text NOT NULL CHECK (status IN ('sent','failed','settled')),
+  error_code text,
+  sent_at    timestamptz NOT NULL DEFAULT now(),
+  checked_at timestamptz
+);
+CREATE INDEX idx_push_deliveries_unchecked ON push_deliveries(sent_at)
+  WHERE checked_at IS NULL AND ticket_id IS NOT NULL;
+CREATE INDEX idx_push_deliveries_job ON push_deliveries(job_id);
+```
+
+`push_job_kind` has two values because D70 allows two triggers. A third kind of
+notification cannot be enqueued, so it cannot be sent.
+
+Both tables are service role only: RLS on with no policies, and the grants
+revoked as well. A waitlist job carries the ids of everyone on a waiting list,
+which is nobody else's business.
+
 ### 6.3 Views
 
 ```sql
@@ -1120,6 +1175,7 @@ Remaining tables, summarised. Write each one out in the migration.
 | `rotations`, `court_assignments`, `rotation_sitouts`, `locked_courts`, `pairing_rules` | **none** | none | full |
 | `announcements` | all not deleted | none | full |
 | `device_tokens` | own rows | insert and update own rows | full |
+| `push_jobs`, `push_deliveries` | **none** | none | **none** (service role only; see A66) |
 | `audit_log` | none | none | coach only |
 | Report views | none | none | coach only |
 
@@ -1973,7 +2029,7 @@ Empty state: "No sessions today."
 
 The operational hub for one session. Tabs: **Players**, **Court board**, **Money**.
 
-**Players tab.** The attendee list with tier badges and payment method chips. Header buttons: *Add player*, *Add guest*, *Add coach*. Swipe or long press a row for *Remove*, *Change tier*, *Move to another session*.
+**Players tab.** The attendee list with tier badges and payment method chips. Header buttons: *Add player*, *Add guest*, *Add coach*. The row gesture is a tap, opening a menu (`RowActionsSheet`) rather than the row itself acting — see 15.2's own note in `SessionManageScreen.tsx` for why a swipe or long press was not used. *Remove* and *Move to another session* (`admin_move_booking`, D81) are both built; *Change tier* is 15.8's tier picker and is not, tracked in OPEN-ITEMS.md.
 
 **Add player.** A search field over registered players, minimum 2 characters, `pg_trgm` matching on the full name, results showing name, tier, and credit balance. Selecting one shows a confirmation sheet:
 
@@ -2509,6 +2565,739 @@ Decisions the developer made where the client was silent. Each is safe, reversib
 
 **A18, expo-updates.** Section 2.1 states the project needs EAS Update, and switching language requires an app reload for `I18nManager.forceRTL` to take effect. `expo-updates` provides `reloadAsync()` for that restart, with a dev-only fallback. Added by the phase 0 agent under the section 0 rule 2 procedure.
 
+**A19, one report view exists in phase 1.** Section 7.3's policy table has a
+`Report views` row that is coach only, but section 6.3 defines no report view;
+reports proper are phase 9. Phase 1's acceptance criteria require proving that
+an admin can read everything *except* the report views, which needs a report
+view to exist. `v_session_financials` was added: revenue per section 12.2, cost
+from the instance's snapshot per 12.1, outstanding per 12.3, one row per
+session, guarded with `WHERE is_coach()` so an admin reads zero rows. Phase 9
+extends or replaces it. Added by the phase 1 agent under the section 0 rule 2
+procedure.
+
+**A20, a player can always read a session he has booked.** Section 7.3 grants
+players SELECT on `session_instances` for "rows within the booking window and
+not cancelled". Read literally that makes My Bookings (14.9), booking detail
+(14.10), and the cancelled-session banner (14.7) impossible, because a player
+could not read a session he himself had reserved. The policy is the section 7.3
+predicate `OR EXISTS (a booking of his own on that session)`. It discloses
+nothing he does not already know, and it does not widen what he sees *about*
+that session, which is still governed by `get_session_attendees`. Added by the
+phase 1 agent under the section 0 rule 2 procedure.
+
+**A21, view security mode.** A Postgres view runs with its owner's rights by
+default, which silently bypasses the RLS on the tables underneath it. The three
+views in 6.3 therefore had to choose explicitly.
+`v_player_credit_balance` and `v_player_total_balance` are
+`security_invoker = true`, so a player sees his own subscriptions and no
+balances at all. `v_session_occupancy` is deliberately left as a definer view:
+section 14.6 states the count is not private at any visibility level, and a
+player cannot read other people's bookings, so the count has to be computed
+above his row access rather than through it. It exposes integers and a session
+id and nothing else. Added by the phase 1 agent under the section 0 rule 2
+procedure.
+
+**A22, `@types/node` as a dev dependency.** The phase 1 integration suite reads
+the local stack's URL and keys from the Supabase CLI rather than hardcoding
+them, which needs `child_process` types. `@types/node` is a type-only dev
+dependency and ships nothing into the app bundle, so it is not a section 2.1
+stack addition. Added by the phase 1 agent under the section 0 rule 2
+procedure.
+
+**A23, assistant coach read access is phase 7.** A14 gives an assistant coach
+Today and the court board. Section 7.3's policy table does not mention the role
+at all, and `is_staff()` is admin or coach only, so today an assistant coach
+reads exactly what a player reads. The court board read path is built with the
+court board in phase 7. Recorded here so the gap is deliberate rather than
+forgotten; `supabase/tests/staffAccess.test.ts` asserts where the boundary
+currently sits.
+
+**A24, `profiles.id` no longer references `auth.users`.** Section 6.2 declared
+`id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE`. Section
+14.14 step 4 deletes the `auth.users` row, and A1 requires the profile and the
+bookings, balance entries and credit history hanging off it to survive that
+deletion anonymised. The cascade does the opposite: it deletes the profile, and
+the cascades on `balance_entries`, `player_subscriptions` and
+`credit_transactions` then destroy exactly the history A1 preserves. The
+constraint is dropped in migration 0014. `profiles.id` still carries the same
+uuid as `auth.uid()`, so every policy and helper written against it is
+unchanged; what changes is that a profile may outlive its auth user, which is
+what a deleted account is. Added by the phase 2 agent under the section 0 rule
+4 procedure.
+
+**A25, `profiles.phone` is nullable.** A1 nulls the phone on deletion. Section
+6.2 declared it `NOT NULL` with a 9-to-15 digit CHECK, which leaves only a
+fabricated number as the alternative — worse than absent, because it could
+collide with a real one. Made nullable in migration 0014. Every live profile
+still has one: 14.2 requires it at sign up and `handle_new_user` refuses to
+build a profile without it. Added by the phase 2 agent under the section 0 rule
+4 procedure.
+
+**A26, the profile trigger keys on the phone.** `handle_new_user` reads the
+five sign-up fields from `auth.users.raw_user_meta_data` and stands aside when
+no phone is present. `supabase/seed.sql` inserts `auth.users` rows directly and
+then writes its own `profiles` rows carrying roles, tiers and custom rates the
+trigger knows nothing about; leaving the phone out of its metadata is how it
+says so. Any other discriminator would have meant either editing the seed or
+letting the trigger overwrite it. Added by the phase 2 agent under the section
+0 rule 2 procedure.
+
+**A27, an abandoned sign-up leaves an unconfirmed account behind.** 14.3's
+*Change email* has no session to work with, so the address is changed by
+registering the correct one; GoTrue cannot move an unconfirmed user's email
+without one. The abandoned attempt keeps its `auth.users` row and its profile,
+both unconfirmed. It can never sign in and holds no bookings. If the coach's
+player list in phase 3 wants them gone, the filter is
+`auth.users.email_confirmed_at IS NULL`. Added by the phase 2 agent under the
+section 0 rule 2 procedure.
+
+**A28, staff reach the account screens through More.** 14.0 puts Settings under
+the admin *More* tab and 14.12 is written as a player screen, but a coach also
+has to be able to sign out, and App Store guideline 5.1.1(v) does not exempt
+his account from being deletable. The *More* tab is the profile stack until
+phase 8 and 9 give it announcements and reports. Added by the phase 2 agent
+under the section 0 rule 2 procedure.
+
+**A29, the delete confirmation word is translated.** 14.14 requires the word
+DELETE to be typed. Asking somebody on an Arabic keyboard to produce Latin
+capitals is a barrier rather than a safeguard, and the safeguard is deliberate
+typing. The Arabic deck asks for `حذف`; the comparison is case-insensitive and
+trims, and each language accepts only its own word. Added by the phase 2 agent
+under the section 0 rule 2 procedure.
+
+**A30, the credits card on the profile is phase 6's.** 14.12 lists a "credits
+summary card, tappable through to subscriptions" among the profile screen's
+contents. Building it in phase 2 would mean building the credit balance query
+and the subscriptions screen (14.13) it taps through to, both of which section
+20 assigns to phase 6. Everything else in 14.12 shipped in phase 2; the card
+lands with the screen behind it. Added by the phase 2 agent under the section 0
+rule 2 procedure.
+
+**A31, `current_date` is not Amman's today.** Section 5.1 requires every
+business comparison to convert to Asia/Amman first. `current_date` reads the
+database session's timezone, which on Supabase is UTC, and Jordan is UTC+3, so
+for the three hours between 00:00 and 03:00 Amman it returns yesterday. Phase 1
+wrote the player's 5 day window against it; during those three hours the
+schedule showed a day that finished the previous night and hid the fifth day,
+which is not "exactly 5 days". Migration 0016 adds `amman_today()` and rewrites
+the `session_instances` select policy against it, and `generate_sessions` uses
+it too. Nothing else changes: the A20 disjunct and the rest of the predicate are
+untouched. The same substitution is owed to `create_booking`'s
+`current_date + interval '4 days'` guard when phase 4 writes it. Added by the
+phase 3 agent under the section 0 rule 2 procedure.
+
+**A32, generation keys on the template and the date, not on the start time.**
+Section 8.1 step 2 says to insert an instance "if one does not already exist for
+that `(venue_id, starts_at)`". D7 lets the coach move a single dated instance to
+a different time without touching the template. Read literally the two
+contradict each other: once he has moved Saturday's 19:00 session to 19:45, the
+next nightly run finds nothing at 19:00 and helpfully creates a second session
+there, and cancelling one would do the same. `generate_sessions` therefore skips
+a `(template_id, session_date)` pair that already has a row, whatever its time
+or status. The unique constraint on `(venue_id, starts_at)` is still enforced
+underneath by `ON CONFLICT DO NOTHING`, so 8.1's rule still holds — it is now
+the second line of defence rather than the first. Added by the phase 3 agent
+under the section 0 rule 2 procedure.
+
+**A33, four error codes Appendix A does not list.** The staff session RPCs raise
+`not_authorized` (a non-staff caller), `session_time_taken` (a unique violation
+on `(venue_id, starts_at)`, which 15.4 and 15.6 can both provoke),
+`invalid_duration`, `invalid_court_count`, `invalid_price` and `venue_not_found`
+(arguments outside what D5 and section 6.2 permit). Appendix A covers the
+booking and review paths and predates these three functions existing. Each has a
+string key in the `admin.error` namespace in both decks. Added by the phase 3
+agent under the section 0 rule 2 procedure.
+
+**A34, the eighth state of 14.7 is `ended`.** Section 14.7's primary action
+table has seven rows; 19.1 requires a component test proving the button "matches
+the state table in Section 14.7 for all eight states". The enumeration in
+`src/features/sessions/sessionState.ts` names eight, and the missing one is a
+session that is over. It is unreachable from the player schedule, which hides
+finished sessions (5.2), but reachable from My Bookings, which 14.9 keeps
+showing for 30 days and 14.10 gives a cancel button "subject to the window".
+Without it the enumeration is not total and a finished session would offer
+*Cancel my reservation*. The seven rows also overlap, so they are given a
+precedence rather than a lookup; the reasoning for each step is in that file.
+Added by the phase 3 agent under the section 0 rule 2 procedure.
+
+**A35, the coach types a date rather than picking one.** 15.6 asks for a date on
+the one-off session form. Every date picker for React Native is a native
+dependency, and section 2.1's stack table lists none. The field takes a typed
+`yyyy-MM-dd`, validated by the form schema, on a screen the coach uses a handful
+of times a season. If the client wants a picker, `@react-native-community/
+datetimepicker` is the Expo-supported one and it is a section 2.1 amendment
+rather than a code decision. Added by the phase 3 agent under the section 0 rule
+2 procedure.
+
+**Closed, phase 10.** The client approved the amendment; see 2.1 and
+OPEN-ITEMS.md. `DateField`/`FormDateField` (`src/components/primitives/`) wrap
+it and are used on 15.6's create form, 15.9's grant form, and the extend sheet.
+
+**A36, `@shopify/flash-list` arrives with the admin schedule.** Section 2.1
+lists it for "any list that can exceed 20 rows". The player schedule is five
+days of a twelve-session week — about ten cards and five headers — and stays on
+`SectionList`, which gives 14.6's sticky day headers without a flattening pass.
+15.3's thirty days is roughly fifty cards plus thirty headers, so that one uses
+FlashList over a flat array of tagged rows. It is a native dependency and needs
+a new dev build. Added by the phase 3 agent under the section 0 rule 2
+procedure.
+
+**A37, two payment methods `create_booking` refuses.** Section 8.2's signature
+takes any `payment_method`. Two of the four must not reach it from a player's
+phone. `free` is staff-only: 10.1 assigns it to guests and coach slots (D45,
+D47), and a player who could ask for it would book for nothing. `cliq` is
+refused for now because 10.1 states that "a booking must never exist with
+`payment_method = 'cliq'` and no proof row", and the upload, the storage policy
+and the proof row are all phase 5 — so until then that path can only create the
+state 10.1 forbids. The sheet disables the option with a line saying so, and
+the function raises `payment_method_not_allowed` and `cliq_unavailable`
+respectively. Phase 5 removes the second guard when it adds the proof; the
+first one stays. Added by the phase 4 agent under the section 0 rule 2
+procedure.
+
+**A38, 9.1's order wins over 8.2's.** Section 8.2 gives working code for
+`create_booking`; section 9.1 gives a nine row table and says "evaluate in this
+order and return the first failure". They disagree twice: 8.2 checks the 1 hour
+cutoff before the 5 day window, and the deleted account before the email, while
+9.1 has each pair the other way round. 9.1 is the section that states an order
+as a requirement rather than incidentally, so it is the one implemented. The
+pair that a player will actually hit is `already_booked` before `session_full`:
+rebooking a session he is already in should tell him he is already in it.
+`supabase/tests/createBooking.test.ts` asserts that case explicitly. Added by
+the phase 4 agent under the section 0 rule 2 procedure.
+
+**A39, `notify_waitlist` stamps rather than sends.** Section 8.4 step 4 says to
+"insert a push job row for each, then call the send-push edge function". Section
+6 defines no push job table, and section 20 puts token registration, `send-push`
+and dead token pruning in phase 8. The function therefore implements steps 1, 2,
+3 and 5 — the cutoff, the capacity check, the selection and `notified_at` — and
+returns how many entries it stamped, so a test can tell "nobody was told" from
+"the function was never called". Phase 8 sends to exactly the set this marks.
+What phase 4 owes is D28's silence, and that is tested at 40 minutes and again
+at 61. Added by the phase 4 agent under the section 0 rule 2 procedure.
+
+**A40, `mark_lineup_stale` discards, and phase 7 regenerates.** Section 8.2
+calls it and 13.8 describes what it should do: while `has_manual_lineup` is
+false, any booking change "discards and regenerates the whole lineup
+automatically". The generator is a pure TypeScript module that runs on the
+coach's phone (13.1), so Postgres cannot call it. The function deletes the
+session's rotations when the coach has made no manual edit, and leaves them
+alone when he has. The court board then loads, finds nothing, and generates —
+which is what "discards and regenerates" describes, one step later. Locked
+courts and pairing rules are untouched by either branch: 13.8 makes them inputs
+to generation rather than results of it. Added by the phase 4 agent under the
+section 0 rule 2 procedure.
+
+**A41, joining a waiting list and leaving one are RPCs.** Section 7.3's policy
+table gives a player insert and delete on his own `waitlist_entries` rows,
+"subject to RPC", and section 8 defines no such function. 9.5 carries rules a
+policy cannot express — already booked is rejected with `already_booked`, and
+D28's cutoff makes a list that can no longer be called one there is no point
+joining — so `join_waitlist` and `leave_waitlist` were added alongside
+`notify_waitlist`. Leaving stamps `left_at` rather than deleting the row, which
+is what that column is for and what keeps the record of who was waiting when a
+spot opened. Added by the phase 4 agent under the section 0 rule 2 procedure.
+
+**A42, a paid guest is marked paid.** D45 lets a guest booking be "paid (with
+an amount) or free (zero)" without saying what `payment_status` a paid guest
+carries at the moment he is added. He is marked `paid`, matching D43's
+treatment of a registered player added without credits — "created as cash and
+marked paid, editable during review" — because both are the same situation: the
+coach is standing next to the person and adding him. The review screen (10.2)
+is where either is corrected. A guest added at zero is `waived`, per 8.5's rule
+that `expected_fils = 0` is never a balance entry. Added by the phase 4 agent
+under the section 0 rule 2 procedure.
+
+**A43, adding a coach writes two rows, and removing him removes both.** D47
+gives an assistant coach a court slot he pays nothing for; D76 charges 10 JD
+for the night he works. Those are different things with different lifetimes —
+one per session, one per venue and date — so `admin_add_coach` writes a booking
+and a `session_coaches` row, and `admin_remove_booking` deletes the
+`session_coaches` row when the booking it removes is a coach slot, then
+recomputes the night. Without the second half, removing a coach from a session
+would leave the academy paying for a night he is no longer on. 15.2's picker
+also lists the head coach, not only `role = 'assistant_coach'`, because D47
+names "the coach and assistant coaches". Added by the phase 4 agent under the
+section 0 rule 2 procedure.
+
+**A44, the row gesture in 15.2 is a tap.** 15.2 asks for "swipe or long press a
+row" to reach *Remove*, *Change tier* and *Move to another session*. A swipe
+needs `react-native-gesture-handler`, which section 2.1 admits for the court
+board and phase 7 brings in, and a long press is invisible to a screen reader.
+A tap opening the confirmation is the same number of deliberate actions — 17.4
+requires the confirmation either way — and works today. If the gesture matters
+to the client it becomes a swipe in phase 7 at no cost, since the confirmation
+it opens is already built. Added by the phase 4 agent under the section 0 rule
+2 procedure.
+
+**Phase 10 update.** With a second action built (*Move to another session*,
+D81), the tap now opens `RowActionsSheet` — a small menu of full-size, screen
+reader-visible buttons — rather than jumping straight to `RemoveBookingDialog`.
+The count of deliberate actions this note argues for is unchanged: one tap to
+open, one to choose, one to confirm, exactly what a swipe followed by a
+confirmation would have cost.
+
+**A45, the booking id is reserved before the screenshot is uploaded.** 10.1
+step 5 names the object `payment-proofs/{user_id}/{booking_id}.jpg` and step 6
+says `create_booking` "is called only after the upload succeeds". Both cannot
+hold if the id is minted by the insert: the path needs an id that does not
+exist yet. `prepare_cliq_booking(session)` therefore runs every section 9.1
+rule and returns a fresh uuid without writing anything, the client uploads
+under that name, and `create_cliq_booking(...)` re-runs every rule under the
+session lock and writes the booking and its proof in one transaction. The uuid
+comes from Postgres rather than the phone because Hermes has no global crypto
+and one string does not justify another native dependency. Reserving is not
+holding: the last spot can still go while the photo uploads, in which case
+`session_full` is raised and the orphaned object is swept by the purge (A48).
+Added by the phase 5 agent under the section 0 rule 2 procedure.
+
+**A46, 10.1's rule is enforced by the database, not by convention.** "A booking
+must never exist with `payment_method = 'cliq'` and no proof row" is a claim
+about the data, so a deferred constraint trigger on `bookings` checks it at
+COMMIT: a CliQ booking with no `payment_proofs` row aborts the transaction,
+whoever wrote it. It fires on INSERT only, because 10.2's *Change method*
+legitimately moves an existing booking onto CliQ when a player paid that way in
+person and there is no screenshot anywhere in that story. Two consequences
+worth knowing: a CliQ booking cannot be created through PostgREST in two
+requests, since each commits on its own, and `supabase/seed.sql` now writes a
+proof row for every historical CliQ booking it generates. Added by the phase 5
+agent under the section 0 rule 2 procedure.
+
+**A47, `create_booking` still refuses CliQ, with a new code.** A37 refused it
+as `cliq_unavailable` because the proof did not exist yet, and said phase 5
+would remove the guard. The guard stays and its meaning changes: CliQ now has
+somewhere else to go, and this entry point cannot attach a proof, so letting it
+through would produce exactly the state A46's trigger aborts. The code is now
+`cliq_requires_proof`. A37's first half, `free` being staff-only, is unchanged
+and permanent. Added by the phase 5 agent under the section 0 rule 2 procedure.
+
+**A48, a credit booking cannot change payment method.** 10.2 lists *Change
+method* among the row actions without saying which methods it moves between.
+Cash, CliQ and free interchange freely. Credit does not, either way: moving a
+booking off credit would strand the `-1` transaction that paid for it, and
+moving one onto credit would need a subscription chosen and a ledger row
+written, which is 8.2's job and not 8.5's. `record_payment` raises
+`credit_change_not_supported` and the review screen offers no *Change method*
+on a credit row at all. The coach's route is 10.2's own *Remove from session*,
+which returns the credit, followed by adding him again. Added by the phase 5
+agent under the section 0 rule 2 procedure.
+
+**A49, an underpaying guest gets no balance entry.** 8.5 says a partial payment
+inserts a `balance_entries` row for the difference. `balance_entries.player_id`
+is NOT NULL and a guest has no account, because D44 and D46 make him a name and
+a tier that are not remembered. He therefore gets his `payment_status` and no
+entry: there is nowhere to put the debt and nobody to collect it from, and
+inventing somewhere would be inventing the guest history section 4 item 12
+forbids. The coach knows who the guest was; the app deliberately does not. The
+same holds for a coach slot, which expects nothing anyway (D47). Added by the
+phase 5 agent under the section 0 rule 2 procedure.
+
+**A50, `record_payment` never rewrites the price, except to waive it.** A7
+makes `expected_fils` a snapshot taken at booking, and a method change does not
+touch it. The one exception is `free`, because 10.1's table defines free as
+expecting nothing — choosing it *is* the act of waiving the amount — so the
+price goes to zero, the status becomes `waived`, and the row's balance entry
+goes with it. Moving a free row back to cash does not restore a price; the
+coach removes and re-adds, which is the same route A48 names. Added by the
+phase 5 agent under the section 0 rule 2 procedure.
+
+**A51, removing a booking removes the balance entry it created.** 9.3 is
+explicit that "the app never creates a balance entry from a cancellation", and
+10.3 that an entry is created only by `record_payment` and only from the review
+screen. Neither says what happens to an existing entry when the booking behind
+it is removed. `admin_remove_booking` deletes it: the debt was for a place in a
+session the coach has just decided this person did not have, and leaving it
+behind would create a balance entry from a cancellation by omission. A manual
+entry, which carries no `booking_id`, is untouched. Added by the phase 5 agent
+under the section 0 rule 2 procedure.
+
+**A52, the 7 day lock binds on the deadline, not on the cron job.** D39 has two
+halves and only one of them is a status. "The review window is 7 days from
+session end" is a fact about the clock; `status = 'locked'` is a fact about
+whether 8.6's 03:10 job has run yet. Between the window closing and the job
+firing, a session is over its deadline and still says `pending_review`, and a
+status check alone would let mutations through for those hours.
+`assert_session_unlocked` checks both, so every staff mutation — record a
+payment, confirm, reopen, add, remove, edit, cancel — is refused from the
+moment the deadline passes. The job still runs, and is what makes the state
+visible to a reader and to the review screen's read-only banner. The client
+computes the same thing the same way in `features/payments/reviewState.ts`, so
+the screen never offers a control the server would refuse. Added by the phase 5
+agent under the section 0 rule 2 procedure.
+
+**A53, the review footer is staff-visible; the report view stays coach-only.**
+10.2 requires "the session's cost and profit" in the review screen's footer, and
+D16 gives an admin the review screen. A19's `v_session_financials` is guarded
+with `WHERE is_coach()` per D73, so an admin reads nothing from it. The same
+arithmetic for one session at a time is therefore exposed as
+`get_session_money_summary(session)`, gated on `is_staff()`. D73's "reports" is
+the Reports tab in 15.12, not the bottom of the screen an admin is standing in
+the gym using; the month-wide view that phase 9 builds stays coach-only. Added
+by the phase 5 agent under the section 0 rule 2 procedure.
+
+**A54, the proof purge cannot live in `pg_cron`.** 8.6 schedules the daily
+04:00 purge in Postgres and says to delete the storage objects first. Storage
+refuses: `storage.protect_delete` raises on any DELETE against
+`storage.objects` that does not come through the Storage API, whatever role
+issues it — "This prevents accidental data loss from orphaned objects". The
+work is split exactly as `delete-account` already splits it (8.7, A1):
+`purge_payment_proofs()` retires the rows past `purge_after` and returns their
+paths, plus any object left unclaimed for more than a day by a CliQ booking
+that failed after its upload (A45), and the edge function
+`purge-payment-proofs` hands those paths to the Storage API. There is one
+deleter of rows, so a path can never be retired without something being told to
+remove the object behind it. The order is rows-then-objects rather than 8.6's
+objects-then-rows, for the reason `delete-account` gives for the same
+inversion. **What is not wired: the daily invocation.** It is a deployment step,
+not code, and it is recorded in OPEN-ITEMS.md. Nothing is at risk before
+August 2027, since A13's retention is 365 days and the app has not launched.
+Added by the phase 5 agent under the section 0 rule 2 procedure.
+
+**A55, `expo-clipboard`.** 14.8 requires a copy button beside the CliQ alias
+and section 2.1's stack table names no clipboard library. React Native removed
+`Clipboard` from core, so `expo-clipboard` is the only supported route on a
+managed Expo project and it is what `expo install` resolves. `expo-image-picker`
+and `expo-image-manipulator` were already in 2.1 for exactly this flow. Added by
+the phase 5 agent under the section 0 rule 2 procedure.
+
+**A56, eight error codes Appendix A does not list.** `session_not_in_review`,
+`session_not_confirmed`, `invalid_amount` and `credit_change_not_supported`
+come from the review functions, which Appendix A predates.
+`cliq_requires_proof`, `proof_path_mismatch`, `proof_required` and
+`booking_not_found` come from the CliQ path. Each has a key in the
+`admin.error` or `payment` namespace in both decks; the four that are
+unreachable from the UI, which offers only the actions that work, map to the
+generic message a crafted call deserves. Added by the phase 5 agent under the
+section 0 rule 2 procedure.
+
+**A57, the admin player profile is two of 15.8's eight sections.** Phase 5
+creates balance entries and section 20 assigns 15.8 to no phase at all, so a
+debt the coach could never see or settle would be half a feature. Sections 1
+(identity) and 6 (balance, per 10.3) are built, reached by tapping a name on
+the review screen — where the debt was created. Sections 2, 3, 4, 7 and 8 are
+recorded in OPEN-ITEMS.md; section 5 is phase 6, which also brings 15.7's
+filterable player list and gives the screen its second way in. The player's own
+email is not shown: `profiles` carries no email column and `auth.users` is not
+readable from the client, so 15.8 section 1's email waits for a staff-only RPC
+if the coach turns out to want one. Added by the phase 5 agent under the
+section 0 rule 2 procedure.
+
+**A58, only the coach extends; an admin may grant and adjust.** D16 gives an
+admin everything the coach has except reports, and its list of examples names
+"granting subscriptions". D55 is written about one action and is narrower:
+"Only the coach extends a subscription, manually, and only before it expires."
+A list of examples does not overrule a decision about the very action in
+question, so `grant_subscription` and `adjust_credits` are gated on
+`is_staff()` and `extend_subscription` on `is_coach()`. 11.2 agrees for the
+first ("Coach or admin, from the player profile") and 11.5 agrees for the last.
+The *Extend* button is drawn only for the coach, so an admin is never offered a
+control the server would refuse. To overturn: one sentence, and one line —
+`is_coach()` becomes `is_staff()` in migration 0029. Added by the phase 6 agent
+under the section 0 rule 2 procedure.
+
+**A59, adjusting credits may not take a balance below zero.** 15.10's preview
+is "Balance goes from 40 to 27" and 11.3's flow subtracts from a grant that
+covers it. Neither says what a −6 balance would mean. Nothing in the
+specification describes one: `pick_subscription` wants `remaining > 0` so it
+cannot be spent, the expiry job would have to *add* credits to zero it, and a
+negative number on 14.13's screen would be a debt in the one place D40 keeps
+debts out of. `adjust_credits` raises `insufficient_credits`. A coach who has
+over-corrected adjusts upwards; a coach recording money owed uses a balance
+entry (10.3), which is the table for it. Adjusting a voided subscription is
+refused for the neighbouring reason: expiry closes that ledger at exactly zero
+(11.5), and reopening it would produce credits that are visible and
+unspendable. Added by the phase 6 agent under the section 0 rule 2 procedure.
+
+**A60, 15.7's player list is phase 6's, because 15.9 and 15.10 need a way in.**
+Section 20 assigns 15.7 to no phase. 14.0 assigns it a place: it is the root of
+the Players stack, `PlayerList → PlayerProfile → GrantSubscription →
+AdjustCredits`, and the last two are this phase's. Phase 5 gave the player
+profile one other route — tapping a name on the review screen — but the people
+11.3's migration exists for are mid-subscription *today* and need not appear on
+any recent review screen. Without the list, the flow this phase is measured by
+cannot be reached for exactly the players it is for. Built as 15.7 describes:
+search, the four filters, the three sorts, all of them server side in
+`search_players`, because two of the filters are sums over other tables.
+Added by the phase 6 agent under the section 0 rule 2 procedure.
+
+**A61, seven error codes Appendix A does not list.** `player_not_found`,
+`package_not_found`, `invalid_visit_count` and `invalid_expiry` come from
+`grant_subscription` and `extend_subscription`; `note_required`,
+`insufficient_credits` and `subscription_voided` come from `adjust_credits`.
+Appendix A predates all three functions and already lists
+`subscription_expired`, which is the one the coach can actually provoke. Each
+has a key in the `admin.error` or `validation` namespace in both decks; the
+ones a well-behaved screen cannot reach map to the generic message a crafted
+call deserves. Added by the phase 6 agent under the section 0 rule 2 procedure.
+
+**A62, six error codes for the court board's writes.** `court_locked` and
+`court_not_full` are the two the coach can provoke: 13.9 requires a toast when
+a swap touches a locked court, and 13.4 rule 3 means a singles court has no
+four players to lock. Both have keys in the `admin.board.error` namespace in
+both decks. `rotation_not_found`, `assignment_not_found`, `invalid_lineup` and
+`same_player` are shapes the board cannot produce and a crafted call can, so
+they map to the generic message. Added by the phase 7 agent under the section 0
+rule 2 procedure.
+
+**A63, the court board's writes are RPCs, and 0033 is where they live.**
+Section 8 lists the server side functions and stops before the lineup; 0012
+gives staff `FOR ALL` on `rotations`, `court_assignments`, `rotation_sitouts`
+and `locked_courts`, so a client could in principle write them directly.
+`save_lineup` replaces four tables' worth of rows at once and 13.9 requires a
+swap to write immediately, so both are single transactions on the server rather
+than a sequence of round trips: a board that is half of the old lineup and half
+of the new one is one the coach reads five names off a court from.
+`count_lineup_changes` is there for the same reason 13.8's banner needs a
+number. Added by the phase 7 agent under the section 0 rule 2 procedure.
+
+**A64, locking a court governs the next generation, not this one.** 13.9 says a
+locked court "is excluded from all future generation" and 13.4 rule 3 says it
+keeps its four players "in every rotation". Read together they would have a
+long press rewrite the five rotations already on screen. It does not: `lock_court`
+records the four players on that court in the rotation the coach is looking at
+and leaves every rotation alone. A lock that rewrote the board would be a
+regeneration wearing a padlock, and 13.8 gives that power to one button, which
+asks first. Added by the phase 7 agent under the section 0 rule 2 procedure.
+
+**A65, a resting player's tile is a player tile.** 13.9 says "drag a player tile
+onto another player tile to swap them" and 13.10 puts the sit-outs in a section
+of their own. Both readings are available; the board takes the literal one, so a
+swap may exchange somebody on court with somebody resting. Section 4 item 17
+rules out late arrival and early departure handling, and this is neither: it is
+the coach deciding who sits this rotation, which is the same decision the engine
+made for him. Added by the phase 7 agent under the section 0 rule 2 procedure.
+
+**A66, the push outbox is two tables.** Section 8.4 step 4 says to "insert a
+push job row for each, then call the send-push edge function". Section 6
+defines no push job table, so `push_jobs` and `push_deliveries` were added and
+are recorded in section 6.2 and in section 7.3's policy table.
+
+`push_jobs` is the outbox: one row per event section 18 permits, with the
+audience frozen at enqueue time and the payload captured with it, so a session
+whose time the coach edits after a spot opened does not change a notification
+already on its way. `push_deliveries` is one row per token a job was sent to,
+and it exists for one sentence in section 18: "dead tokens returned by Expo's
+receipt API are deleted". A receipt names a *ticket*, not a token, and Expo
+advises waiting minutes before asking for one, so the ticket-to-token mapping
+has to outlive the request that created it. Without the second table a receipt
+is unactionable.
+
+`push_job_kind` has exactly two values, which is how D70 is enforced rather
+than merely intended: a booking confirmation, a reminder, a cancellation or an
+expiry warning cannot be enqueued, because there is nothing to enqueue it as.
+The two writers of the table are `notify_waitlist` and `publish_announcement`,
+both in migration 0035, and there is no third. Added by the phase 8 agent under
+the section 0 rule 4 procedure.
+
+**A67, `send-push` is a drain, not a courier.** Section 8.7 describes it as
+taking "a list of player ids and a payload". It deliberately does not. Its
+caller is an ordinary signed-in phone — the coach who has just published
+(15.11), or the player whose cancellation freed a spot (8.3 step 7) — and a
+phone that could name its own audience could push anything to anyone. The
+request body carries nothing but an optional batch size; the function claims
+whatever the database has decided to send, resolves each job's devices itself,
+and sends that.
+
+The consequence worth stating: D28's one hour rule is not enforced in the edge
+function. `notify_waitlist` enqueues nothing when a spot opens inside the last
+hour, so there is nothing for a drain to find, and no request to the function
+can produce a notification the database did not already write down. Three error
+codes come with the announcement RPCs and are listed in Appendix A:
+`invalid_announcement_body`, `invalid_language` and `announcement_not_found`.
+Added by the phase 8 agent under the section 0 rule 2 procedure.
+
+**A68, four notification strings and one time format live in the edge
+function too.** Section 18 requires the payload's language to come from the
+device row, which puts both languages on the server; the string deck lives on
+the phone, and importing it into Deno reaches outside the directory the
+Supabase CLI mounts, so it would not survive a deploy.
+`supabase/functions/_shared/pushStrings.ts` therefore holds a second copy of
+the four `notifications` entries, and `_shared/ammanTime.ts` a second
+implementation of 16.1's 12 hour format — which needs no date library because
+5.1 fixes Jordan at UTC+3 with no daylight saving.
+
+What makes the duplication safe rather than a 16.1 violation is a test:
+`src/features/notifications/__tests__/pushStrings.test.ts` asserts the table is
+character for character the `notifications` namespace of both decks, and that
+the time format agrees with `src/lib/time.ts` at every half hour of a day, in
+both languages. Edit either side and the suite fails. Added by the phase 8
+agent under the section 0 rule 2 procedure.
+
+**A69, permission is asked for once, and the token is registered on the yes.**
+Section 18 has two sentences that pull against each other in practice: tokens
+are "registered on login and refreshed on every cold start", and permission is
+"requested contextually, the first time the player joins a waiting list, not on
+first launch". A cold start is first launch for anybody who has not joined a
+list yet, so `acquireDeviceToken` checks the permission and never asks for it —
+which means a player who never joins a waiting list has no token and receives
+no announcement push either. That is what section 18 asks for, stated plainly.
+
+The moment he does grant permission is the first moment the phone can produce a
+token, and the cold-start effect will not try again until the next launch, so
+the join flow registers it immediately on a yes. Waiting would mean missing the
+spot he joined the list for. Added by the phase 8 agent under the section 0
+rule 2 procedure.
+
+**A70, the More tab's root is the announcement list.** 14.0 gives the staff
+More tab the stack "Announcements → Reports [coach only] → Settings". A28 made
+it the profile stack in phase 2 "until phase 8 and 9 give it announcements and
+reports", and this is that: 15.11's list is the root, the composer and the
+detail view sit behind it, and 14.12's profile — where a staff account signs
+out and deletes itself — is one tap in from a *Settings* button on the list.
+Account deletion therefore stays inside the three taps App Store guideline
+5.1.1(v) allows (23.3). Added by the phase 8 agent under the section 0 rule 2
+procedure.
+
+**A71, a waitlist notification has no destination on the staff side.**
+Section 18 deep links a waitlist push to session detail, which is 14.7 — a
+player screen. A staff account reaches a session through 15.2 instead, which is
+a different screen showing different things. Rather than send a coach somewhere
+the notification is not about, that combination opens nothing and the app stays
+where it was. An announcement push works on both sides, landing in 14.11's tab
+for a player and in the More stack for staff. Added by the phase 8 agent under
+the section 0 rule 2 procedure.
+
+**A72, a month's report covers the sessions that have started.** 15.12 gives
+the report a month picker and does not say which sessions in that month it
+counts. Every figure in it — revenue, cost, occupancy, the per-session table —
+is drawn from sessions whose `session_date` falls in the Amman month, whose
+status is not `cancelled`, and which have started. The last clause matters only
+for the month the coach is standing in: a session tonight at 21:00 already
+carries a cost snapshot, because the rent is committed (12.1), and cannot have
+taken a fils yet, so counting it would show the current month as a loss until
+its last session had run. Cancelled sessions are excluded from revenue, cost
+and occupancy and counted on their own line, because `recompute_night_costs`
+redistributes their share of the night's rent across the sessions that did run.
+Added by the phase 9 agent under the section 0 rule 2 procedure.
+
+**A73, section 8 reports two different outstanding figures.** 15.12 section 8
+says "Total owed, with the top ten debtors" under a month picker, and a debt is
+not a monthly quantity: a player who has owed 8 JD since March still owes it in
+May. So the report gives both. "Total owed to date" is the balance ledger as it
+stands, which is what the coach chases and what the ten names are ordered by;
+"unpaid from this month" is the month's own figure, and it is the one 12.3 adds
+to profit to reach "profit if all outstanding is collected". Each debtor's row
+shows how much of his total this month created. Added by the phase 9 agent
+under the section 0 rule 2 procedure.
+
+**A74, averages are divided on the client, from two integers.** 15.12 asks for
+"average occupancy" in section 2, "average fill" in section 5 and "fill rate"
+in section 6. The report functions return attendance and capacity as integers
+and never a ratio, and the single division lives in
+`src/features/reports/aggregate.ts`, so the three cannot come to mean three
+different things. A slot that did not run has no fill rate rather than a rate
+of zero, and renders as a dash: a dying slot and a slot that was not held are
+different facts, and telling them apart is what section 5 exists for. Section 5
+groups by template and therefore leaves out one-off sessions (15.6), which are
+not a recurring slot; they remain in section 6 and in every total. Added by the
+phase 9 agent under the section 0 rule 2 procedure.
+
+**A75, "sold this month" is granted this month, valued at the snapshotted
+rate.** D49 and D50 keep subscription money outside the app entirely, so the
+only date section 7 can use is the grant. Its value is `granted_visits ×
+per_visit_fils` rather than the package price, because 11.2 lets the coach
+override the visit count and 11.1 snapshots the rate. "Credits used" nets
+refunds and session cancellations off the bookings, since 9.3 says a cancelled
+credit booking consumed nothing. Added by the phase 9 agent under the section 0
+rule 2 procedure.
+
+**A76, the Reports route exists for every staff account.** 15.12 says an admin
+opening the tab "sees a permission denied state, and the API refuses the query
+as well", which requires the tab to open. The route is registered in the More
+stack for all staff and its button is shown to all staff; the refusal comes
+from the eight functions in migration 0036, each of which raises
+`not_authorized` unless `is_coach()`. Hiding the button would move D73's
+boundary out of the database and into a navigator, and would replace a stated
+answer with a missing one. Added by the phase 9 agent under the section 0 rule
+2 procedure.
+
+**A77, `@sentry/react-native` is a section 2.1 addition that 23.4 already
+made.** Section 2.1's stack table is the list of libraries the project may use
+and it does not name Sentry; section 23.4 says "Sentry for crashes and
+unhandled promise rejections" and section 20 makes "Sentry wired" a phase 10
+deliverable. Appendix B rule 2 prefers prose over silence, and there is no way
+to satisfy 23.4 without the SDK. `expo install` resolves it to the version that
+matches the SDK rather than the newest, and its config plugin is what installs
+the native crash handlers. Added by the phase 10 agent under the section 0 rule
+2 procedure.
+
+**A78, what Sentry may collect is a list, not a default.** 23.4's two sentences
+pull in opposite directions: the first asks for crash reporting, the second
+forbids "analytics SDK… tracking… advertising identifiers". Sentry's defaults
+sit on the wrong side of that line — session tracking, performance spans,
+screenshots and view hierarchies are all on unless turned off, and a minor
+version could turn one back on without anybody editing a line. So every one of
+them is set explicitly in `src/lib/monitoring.ts` and asserted in
+`src/lib/__tests__/monitoring.test.ts`, which makes the options object the place
+the boundary is written down.
+
+Three consequences worth stating. No user is ever put on the Sentry scope, so a
+report carries a stack and not a name. Navigation breadcrumbs have their data
+stripped, because the route params in this app are booking, player and session
+ids. And a development build initialises but does not send: a developer's stack
+traces are not the academy's to store. Added by the phase 10 agent under the
+section 0 rule 2 procedure.
+
+**A79, the root error boundary is an error state, not a crash handler.** 19.3
+item 6 requires every screen to have a reachable error state, and every screen
+has one for the read that failed. None of them covers a component that throws
+while rendering, which in a release build is a blank screen — no message, no
+retry, and no way to reach the coach, which D72 says there always must be.
+`AppErrorBoundary` renders the same `ErrorState` every screen uses, with its
+WhatsApp button, and reports the throw. It sits inside `ThemeProvider` and
+`I18nextProvider`, because its fallback is themed and translated, and outside
+everything that can throw. Added by the phase 10 agent under the section 0 rule
+2 procedure.
+
+**A80, the Arabic permission strings are a `locales` map, and RECORD_AUDIO is
+blocked.** 23.3 requires the camera and photo library usage strings "in both
+languages". An Expo config plugin takes one string per key and cannot express
+two, so the second language goes in `assets/locales/ar.json` and reaches iOS
+through the config's `locales` field, which writes an `InfoPlist.strings` under
+an `.lproj` directory — the only place iOS looks for a translated system
+prompt. `CFBundleAllowMixedLocalizations` is set with it, because iOS picks the
+string by *device* language and Arabic is the app's default (16.1) but need not
+be the phone's.
+
+The same pass found `expo-image-picker` adding `android.permission.RECORD_AUDIO`
+by default, because a picker can pick video. This app picks one still image in
+one flow (10.1) and records nothing, and 23.3's data safety form has to be able
+to say so, so `microphonePermission: false` both drops the permission and blocks
+anything else from adding it back. Added by the phase 10 agent under the section
+0 rule 2 procedure.
+
+**A81, a production build refuses to start without its Supabase values.**
+`EXPO_PUBLIC_*` values are inlined at build time (2.5), so one missing from the
+EAS `production` environment produces a signed binary that cannot reach the
+database and looks fine until it is launched — after `eas submit`, which is the
+expensive place to find out. `src/lib/config.ts` throws at module load when
+`EXPO_PUBLIC_ENVIRONMENT` is `production` and either Supabase value is empty,
+naming the variable and the environment. A development build is untouched: a
+developer who has just cloned the repository has no `.env`, and the test suite
+runs that way. Added by the phase 10 agent under the section 0 rule 2
+procedure.
+
+**A82, 16.3's CI is a GitHub Actions workflow.** 16.3 states that "CI fails if
+they diverge" and section 19 assumes a CI exists throughout, but no file in the
+repository ran anything. `src/i18n/__tests__/keyParity.test.ts` had been the
+check since phase 0 and nothing invoked it outside a developer's terminal.
+`.github/workflows/ci.yml` runs the deck parity suite first, then 19.3's other
+three gates — typecheck, lint, tests — plus a formatting check, on every push to
+`main` and every pull request. The integration suite is deliberately not in it:
+19.1 scopes it to a local Supabase stack, which needs Docker. Added by the phase
+10 agent under the section 0 rule 2 procedure.
+
+**A83, the store paperwork lives in the repository.** 23.3 lists a privacy
+policy, a Play data safety form, screenshots and listing copy, and none of them
+is code. They are in `store/`, in both languages where 23.3 asks for both, so
+the submission is a matter of copying rather than composing — and so that a
+future change to what the app collects can be checked against a file rather than
+against somebody's memory of a form. `store/play-data-safety.md` in particular
+is written as the answers, with the decision that justifies each one beside it.
+What is not there is a *hosted* URL, which needs somewhere to host it; that is
+recorded in OPEN-ITEMS.md alongside section 24 question 8, which needs the same
+host. Added by the phase 10 agent under the section 0 rule 2 procedure.
+
 ---
 
 ## 22. SEED DATA
@@ -2594,6 +3383,17 @@ Nothing here blocks the build. Every one has a working default. Send them as a s
 5. **Who are the admins and assistant coaches**, by name and email, so their accounts can be seeded with the right roles.
 6. **Which tier is the default** for a new player who has never been rated? Currently unrated, shown with a dashed badge, treated as B by the engine.
 7. **Does a seventh rotation happen often** on extended sessions, or is six the norm? Currently six, with a manual add.
+8. ~~**Where should the password reset link land?**~~ Answered, phase 10. A
+   hosted page, not a deep link: `docs/reset-password/` in this repository, meant for GitHub
+   Pages, reads the recovery token from the URL and calls Supabase's `auth/v1/user` endpoint
+   directly to set the new password — no native deep-link handler, no new in-app screen, and
+   it doubles as 23.3's privacy policy host (`docs/privacy-policy/`), which needed a URL for
+   the identical reason. A custom-scheme deep link was the other option, but it depends on
+   individual mail clients honouring `pob://` from inside their in-app browsers, which is
+   unreliable without also standing up universal links — itself a hosted `.well-known` file,
+   i.e. the same hosting requirement by a longer road. `src/features/auth/api.ts` passes
+   `EXPO_PUBLIC_PASSWORD_RESET_URL` as `redirectTo` once it is set; see OPEN-ITEMS.md for what
+   is still a manual step (enabling Pages, filling `docs/reset-password/config.js`).
 
 ---
 
@@ -2620,6 +3420,43 @@ Every server error code, its cause, and the string key the client shows.
 | `not_authorized_to_change_privileged_fields` | profile update | `error.generic` |
 | `only_coach_can_create_coach` | role change | `admin.error.coachOnly` |
 | `subscription_expired` | extend | `admin.error.subscriptionExpired` |
+| `cliq_requires_proof` | booking, review | `error.generic` |
+| `proof_path_mismatch` | CliQ booking | `error.generic` |
+| `proof_required` | CliQ booking | `error.uploadFailed` |
+| `booking_not_found` | review | `error.sessionNotFound` |
+| `invalid_amount` | `record_payment` | `admin.error.invalidAmount` |
+| `credit_change_not_supported` | `record_payment` | `admin.error.creditChangeNotSupported` |
+| `session_not_in_review` | confirm | `admin.error.sessionNotInReview` |
+| `session_not_confirmed` | reopen | `admin.error.sessionNotConfirmed` |
+| `player_not_found` | grant | `error.generic` |
+| `package_not_found` | grant | `error.generic` |
+| `invalid_visit_count` | grant | `admin.error.invalidVisitCount` |
+| `invalid_expiry` | grant, extend | `admin.error.invalidExpiry` |
+| `subscription_not_found` | extend, adjust | `error.generic` |
+| `subscription_voided` | adjust | `admin.error.subscriptionExpired` |
+| `note_required` | adjust | `validation.noteRequired` |
+| `insufficient_credits` | adjust | `admin.error.insufficientCredits` |
+| `court_locked` | `swap_lineup_players` | `admin.board.error.courtLocked` |
+| `court_not_full` | `lock_court` | `admin.board.error.courtNotFull` |
+| `rotation_not_found` | swap, lock | `error.generic` |
+| `assignment_not_found` | `swap_lineup_players` | `error.generic` |
+| `invalid_lineup` | `save_lineup` | `error.generic` |
+| `same_player` | swap, `set_pairing_rule` | `error.generic` |
+| `invalid_announcement_body` | `publish_announcement` | `validation.announcementTooLong` |
+| `invalid_language` | `publish_announcement` | `error.generic` |
+| `announcement_not_found` | `delete_announcement` | `error.generic` |
+| `invalid_push_token` | `register_device_token` | `error.generic` |
+| `invalid_platform` | `register_device_token` | `error.generic` |
+| `not_a_player_booking` | `admin_move_booking` | `admin.error.notAPlayerBooking` |
+| `invalid_target_session` | `admin_move_booking` | `admin.error.invalidTargetSession` |
+
+Both `admin_move_booking` rows came with 15.2's "Move to another session",
+phase 10 — see OPEN-ITEMS.md for the three questions that RPC answers.
+
+The eight before the court board rows were added with sections 15.9 and 15.10;
+see A61. The six after them came with the court board; see A62. The last five
+came with announcements and push; see A67. `not_authorized` covers the staff
+gate on both announcement functions and is already listed above (A33).
 
 ## APPENDIX B, WHAT TO DO WHEN THIS DOCUMENT IS WRONG
 
@@ -2682,13 +3519,20 @@ One fils per credit becomes 30 fils per subscription, and section 12.2 rule 1
 requires credit revenue to be valued at the subscription's per-visit rate
 exactly.
 
-**What was built.** Nothing yet: this lands in phase 1's schema and phase 9's
-reports. `bankersRound` exists in `src/lib/money.ts` and is tested against the
-125000/30 case from section 5.3, returning 4167.
+**What was built.** Resolved by the client before phase 1, in favour of 4167.
+`packages.per_visit_fils` is
+`GENERATED ALWAYS AS (round(price_fils::numeric / visit_count)::integer) STORED`
+in `supabase/migrations/0006_packages_subscriptions_credits_balances.sql`. The
+five seeded packages yield 5000, 4667, 4500, 4167 and 4000, matching section
+11.1 exactly.
 
-**Needs a decision before phase 1.** Either the generated column rounds instead
-of truncating, or sections 5.3 and 11.1 are corrected to 4166. The phase 1
-agent should not pick one silently.
+**One residue, harmless today.** Postgres `round(numeric)` is half away from
+zero; section 5.3 says half to even, which is what `bankersRound` in
+`src/lib/money.ts` does. The two disagree only on an exact .5, and none of the
+five packages produces one: a package would need `price_fils * 2 / visit_count`
+to land on an odd integer. If a package is ever added that does, the server and
+the client will differ by one fils on that package's per-visit rate, and the
+generated column should move to an immutable `bankers_round` function.
 
 ### C3, where EmptyState and ErrorState live
 
@@ -2711,3 +3555,278 @@ because it is a filing question, not a behavioural one.
   one and both authoritative sources agree.
 - **Section 5.2 weekday.** The worked example calls 20 August 2026 a Tuesday;
   it is a Thursday. The date arithmetic in the example is unaffected.
+- **`pg_trgm` ordering.** Section 6.2 creates `idx_profiles_name_trgm` and then
+  `CREATE EXTENSION IF NOT EXISTS pg_trgm` below it. The operator class has to
+  exist before the index references it, so migration 0001 installs the
+  extension (into the `extensions` schema, per Supabase convention) and 0002
+  builds the index against `extensions.gin_trgm_ops`. A typo in the spec, not a
+  decision.
+- **The profile guard applies to the service role too.**
+  `guard_profile_privileged_fields` gates on `is_staff()`, which reads
+  `auth.uid()`. A service-role connection has no `auth.uid()`, so `is_staff()`
+  is false and the service role cannot change a role, visibility, tier, or
+  custom rate either. Built exactly as section 7.3 writes it. It does not
+  obstruct anything specified: the phase 2 `delete-account` function anonymises
+  names, email, phone, and `deleted_at`, none of which are guarded. Worth
+  knowing before writing any future service-role job that touches those five
+  columns.
+- **TanStack passes context as a second argument.** `useMutation`'s
+  `mutationFn` is called as `fn(variables, context)` in v5. Every mutation
+  function in the app takes one argument and ignores the rest, but a test
+  asserting with `toHaveBeenCalledWith` has to account for it.
+- **`fireEvent` and `render` are both async in RNTL 14 on React 19.** An
+  un-awaited `fireEvent` leaves work in flight that the next test's render
+  collides with, and the failure looks like an empty tree rather than a race.
+  The `screen` singleton is not populated at all; tests work from the object
+  `render` resolves to.
+- **`pg_cron` reads its schedules in the server's timezone**, which on Supabase
+  is UTC. Every Amman time in 8.6 is written in migration 0019 as Amman minus
+  three hours, with no DST arithmetic, because Jordan has had none since 2022.
+  `cron.schedule` replaces a job of the same name, so re-running the migration
+  on a `db reset` leaves no duplicates.
+- **8.6 lists five jobs and phase 3 schedules two.** The 5 minute status
+  advance and the nightly `generate_sessions(21)` are phase 3's. The 7 day lock
+  and the payment proof purge are phase 5's and the subscription expiry is
+  phase 6's, per section 20; scheduling them now would mean writing the
+  machinery they act on now. Migration 0019 names all five and says which two
+  it creates.
+- **The audit trigger fires on every cost recomputation.** `trg_audit_session_instances`
+  is an AFTER UPDATE trigger on the whole row, and `recompute_night_costs`
+  updates every mutable session on a night. A nightly generation run therefore
+  writes roughly one audit row per generated session plus one per recomputed
+  sibling. At twelve sessions a week that is noise, not volume, but it is worth
+  knowing before anyone reads `audit_log` expecting only human actions.
+- **14.0 lists a `BookingConfirm` route; 14.8 says it is not a screen.** The
+  navigation tree in 14.0 puts `BookingConfirm` in the schedule stack, and
+  14.8's first line is "A bottom sheet, not a screen." Built as a sheet: it is
+  the more specific statement, and a route cannot sit over the session summary
+  the player is deciding from. `ScheduleStackParamList` says so where the route
+  would have been.
+- **The client is stricter than the server by one millisecond on the 3 hour
+  boundary.** `isWithinCancellationWindow` in `src/lib/time.ts` is `now <
+  cutoff`; `cancel_own_booking` refuses only when `now() > starts_at - interval
+  '3 hours'`, so the instant itself is still acceptable to the server. For that
+  one millisecond the button is hidden on a cancellation the server would have
+  taken. Left as it is because it errs the safe way — the client never offers a
+  button the server will refuse — and asserted in
+  `src/features/bookings/__tests__/bookingState.test.ts` so it is recorded
+  rather than rediscovered.
+- **`fireEvent.press` finds a composite component's `onPress` prop.** React
+  Native Testing Library walks up from the pressed element through composite
+  elements as well as host ones, so pressing anything inside a component that
+  *takes* an `onPress` prop calls that prop, whatever the component actually
+  rendered. A row that guards its own handler internally therefore still looks
+  pressable to a test. `PlayerRow` is given no `onPress` at all when it is
+  disabled, which makes it inert in fact rather than only in appearance.
+- **Storage forbids a SQL delete of an object.** `storage.protect_delete`
+  raises on any DELETE against `storage.objects` that does not come through the
+  Storage API, whatever role issues it, including the service role and a
+  `SECURITY DEFINER` function owned by `postgres`. Anything in 8.6 that has to
+  remove a file is an edge function, not a cron job. See A54.
+- **A deferred constraint trigger cannot be satisfied across two PostgREST
+  requests.** Each request commits on its own, so the check fires at the end of
+  the first one. Two rows that have to exist together have to be written by one
+  statement or one function — which is what makes A46's invariant real rather
+  than advisory, and what `supabase/tests/helpers/bookingFixtures.ts` has to
+  work around when it arranges a CliQ booking.
+- **Resetting form state when a sheet opens is a lint error, not a pattern.**
+  `react-hooks/set-state-in-effect` rejects `useEffect(() => setX(...))`. The
+  sheets whose defaults depend on which row was tapped are mounted only while
+  open and keyed by the booking, so a different row is a different component
+  with its own `useState` initialiser. The phase 4 sheets, whose defaults are
+  fixed, reset on close instead and are unaffected.
+- **Seed files are pipelined, not executed statement by statement.** The
+  Supabase CLI parses every statement in `seed.sql` before it executes any of
+  them, so a helper function created in that file cannot be called from it.
+  Anything needing run-time name resolution lives inside a `DO` block. Seeded
+  `auth.users` rows also need `confirmation_token`, `recovery_token`,
+  `email_change_token_new` and `email_change` set to empty strings rather than
+  NULL, or GoTrue fails every sign-in with "Database error querying schema".
+
+
+### C4, email confirmation cannot both gate booking and let him browse
+
+**The contradiction.** D12 says two things: "Email confirmation is required
+before a player can create a booking. He can log in and browse before
+confirming." 14.3 repeats the second half ("The player can skip and browse"), as
+does A10. Section 2.1 and section 8.2's `create_booking` guard
+(`email_confirmed_at IS NOT NULL`) depend on the first.
+
+Supabase Auth cannot do both. Its own documentation states the setting
+"configure[s] whether users need to verify their email **to sign in**", and the
+behaviour was confirmed against the local stack before anything was built: with
+confirmations on, `signUp` returns a user and no session, and
+`POST /token?grant_type=password` answers `email_not_confirmed`. With
+confirmations off, no confirmation email is ever sent and `email_confirmed_at`
+is set at once, so section 8.2's guard would pass for everybody and the verify
+screen would have nothing to verify.
+
+**What was built.** Confirmations on, in `supabase/config.toml`. Sign up leads
+to VerifyEmail, which polls by attempting the sign-in the player will make
+anyway; it fails with `email_not_confirmed` until he taps the link and succeeds
+the moment he has, which is what 14.3's "advances automatically" describes.
+Browsing before confirming is therefore not reachable. Section 9.1 rule 5,
+`error.confirmEmailFirst` and the `create_booking` guard are all kept exactly as
+specified: they are dormant rather than dead, and become live the day the
+setting changes.
+
+**Why not Appendix B rule 3.** Leaving the feature unbuilt would mean no auth at
+all, which is the whole of phase 2. The two halves are also not of equal
+standing: "confirmation is required before a player can create a booking" is
+restated in 9.1, 14.3, A10, Appendix A and the phase 1 `create_booking`
+function, and the phase brief's own definition of done says a new user must
+"register, confirm by email, sign in". The browse-before-confirm half appears
+twice and gates nothing.
+
+**To overturn.** One sentence, and roughly one line:
+`enable_confirmations = false` in `supabase/config.toml`. Note what it costs —
+no confirmation email is sent at all, so the booking guard stops meaning
+anything. If the client wants both, it needs a confirmation mechanism outside
+GoTrue, which is a much larger change than a phase 2 decision should make.
+`supabase/tests/authTrigger.test.ts` asserts where the boundary currently sits.
+
+### C5, the player cannot see the screenshot he uploaded
+
+**The contradiction.** 14.10 says the booking detail screen shows "the session
+summary, payment method, and for CliQ, the uploaded screenshot thumbnail".
+Section 7.3's closing paragraph says of the `payment-proofs` bucket: "a player
+may `INSERT` an object whose path starts with his own user id. Only staff may
+`SELECT`." A player therefore cannot read back the file he just uploaded, and
+the thumbnail 14.10 asks for cannot be fetched.
+
+The `payment_proofs` *table* does grant him SELECT on his own booking's row
+(7.3's policy table), which is why the two halves look compatible until you try
+to render the image: he can see that a proof exists and not what it is.
+
+**What was built.** Section 7.3. The bucket policy is unchanged from phase 1 —
+insert under his own user id, staff-only read — and 14.10's CliQ card says the
+screenshot was sent to the coach rather than showing it. He has the image in
+his own gallery; the copy in storage exists for the coach's review screen
+(10.2).
+
+**Why not Appendix B rule 3.** Leaving it unbuilt would mean no CliQ flow,
+which is most of phase 5. The two sides are also not of equal standing: 7.3 is
+a security boundary stated as a rule, in the section whose opening line is
+"Visibility levels are a security boundary, not a UI preference"; 14.10's
+thumbnail is one clause in a screen description. Rule 4 was respected — the
+staff-only bucket is not the easier option, it is the one the security section
+argues for.
+
+**To overturn.** One sentence, and one policy: a `payment_proofs_select_own`
+policy on `storage.objects` matching `(storage.foldername(name))[1] =
+auth.uid()::text`, plus a signed URL on the booking detail screen. Note what it
+costs: a player would then be able to enumerate and read every object under his
+own prefix, which is currently a folder nothing can read.
+
+### C6, sit-out selection sorts the wrong way
+
+**The contradiction.** 13.6's `selectPlayers` reads: "If attendees ≤ court
+capacity, everybody plays. Otherwise sort by sit-out count ascending, take the
+top N, and break ties with the seeded RNG so it is not always the same people."
+N is `courtCount * 4`, the playing set. Taking the players with the *fewest*
+sit-outs means the players with the most sit-outs are the ones left over, so the
+same people rest every rotation and nobody else ever does.
+
+13.4's hard constraint 6 says the opposite and says it is inviolable: "Sit-out
+counts are as even as possible: no player sits out twice before every other
+player has sat out once." 19.2's *Ragged bands* fixture asserts exactly that
+over thirteen players and four rotations, and 13.6's own tie-break clause
+("so it is not always the same people") argues against its own sort direction.
+
+The same sentence's first half is wrong twice over: with thirteen attendees on
+four courts, "attendees ≤ court capacity" is true, so everybody plays — on
+three full courts and a court of one. *Ragged bands* asserts one sit-out per
+rotation.
+
+**What was built.** The hard constraint. `selectPlayers` in
+`src/features/matchmaking/engine.ts` sorts descending, so whoever has rested
+most goes on first, and ties are broken with the seeded RNG as 13.6 asks. How
+many play at all comes from `planCapacity`, which follows 13.7's table rather
+than raw capacity: a remainder of one or three players rests one of them
+instead of seating a court nobody can play on.
+
+**Why not Appendix B rule 3.** Leaving it unbuilt would mean no sit-out
+selection, and therefore no engine, which is the whole of phase 7. The two
+sides are not of equal standing either: rule 1 of Appendix B prefers the
+decisions register and 13.4 is the section that declares its constraints never
+violated, against one clause of pseudocode prose that contradicts its own
+following sentence. Rule 4 was respected — descending is not the easier
+direction, it is the one the constraint and the fixture both require.
+
+**To overturn.** One sentence. The change is the comparator in
+`selectPlayers`, and *Ragged bands* and the sit-out fairness test in
+`engine.test.ts` would both have to be deleted with it.
+
+### Observations from phase 7, not conflicts
+
+- **`Court.team1` cannot be a pair.** 13.2 types the two teams as
+  `[string, string]`. 13.7 requires a two-player singles court and, on exactly
+  three attendees, a court of three. A fixed pair cannot express either, so
+  both teams are `readonly string[]` holding one or two booking ids.
+- **Rule 2's seed is dealt twice and the better deal kept.** 13.6 pairs "the
+  strongest of the top half with the weakest of the bottom half", which
+  equalises the pair sums and, on a roster arriving in clean tier bands, hands
+  every pair the wrong intra-team gap: on 19.2's *Even bands* fixture it
+  produces four teams at a gap of six and four at a gap of one, which 13.5
+  scores at 64 against an available zero. No single swap from 13.6's move set
+  reaches the zero — it takes two at once — so the hill climber cannot leave
+  the local optimum and the fixture's "every team spanning at least 2 tier
+  points" fails. `seedRule2` therefore deals both pairings of the two halves,
+  scores each with 13.5, and hill climbs the better one. 13.6's snake remains
+  one of the two candidates; 13.5 is left as the authority on which is good,
+  which is what it says it is.
+
+### Observations from phase 10, not conflicts
+
+- **i18next falls back through the plural forms, so a missing one is silent.**
+  Its candidate list for a counted key ends with `key_other` and then the bare
+  `key`, which means an Arabic deck carrying only `_one` and `_other` renders
+  something for every count rather than failing. It renders the wrong Arabic:
+  `_other` grammar for a dual, for the 3–10 band, and for 11–99. Five families
+  had shipped that way — `admin.cancel.bookingsLine`,
+  `admin.cancel.creditsLine`, `payment.creditSub`, `schedule.sessionsThatDay`
+  and `session.courtsValue` — because the parity suite named
+  `schedule.spotsLeft` alone. It now discovers every base key carrying any
+  plural suffix and requires all six in both decks, so a new counted string is
+  under the rule the moment it is added.
+
+  The house style the existing families had already set is kept: English
+  carries all six for parity but names the number in `_two` ("2 spots left"),
+  which is also what the interpolation check requires, since the Arabic dual is
+  a word rather than a digit.
+
+- **The matchmaking performance fixture measures wall clock inside a Jest
+  worker.** 19.2's last row asserts 20 players over 6 rotations in under 300ms
+  "on a mid-range device". Run alone it takes about a fifth of that; run as one
+  of sixty-nine suites on a loaded machine it has been seen at 338ms. The
+  budget is an acceptance criterion and was left alone rather than widened —
+  the engine's own limit is 150ms per rotation and is what actually bounds it —
+  but a single failure of that test in a parallel run is contention, not a
+  regression. Recorded in OPEN-ITEMS.md.
+
+- **`expo-image-picker` asks for the microphone.** Its config plugin adds
+  `android.permission.RECORD_AUDIO` unless told otherwise, because a picker can
+  pick video. Nothing in the app or the specification wants it, and a Play data
+  safety form has to account for every permission in the manifest. See A80.
+
+- **A `jest.mock` factory cannot close over a name that does not begin with
+  `mock`.** Babel hoists `jest.mock` above every other statement in the file,
+  and the plugin enforces the prefix rather than letting a test fail at run time
+  with a reference error. It reports it as a syntax error pointing at the
+  identifier, which reads like a parser bug and is not one.
+
+- **`jest.resetModules()` gives the module under test a different mock object
+  from the one the test file imported.** A suite that reloads a module to reset
+  its state has to re-require its mocked dependencies from inside the same reset
+  registry, or it asserts on a mock nothing called. This is why
+  `monitoring.test.ts` hands back the Sentry functions alongside the module
+  rather than importing them at the top.
+
+- **`exactOptionalPropertyTypes` forbids clearing a key by assigning
+  `undefined`.** Removing it from the object is the only way, which is what
+  `beforeBreadcrumb` does to strip a navigation breadcrumb's data.
+
+- **A `Text` variant composes its style into an array.** A test asserting on a
+  style a caller passed has to use `arrayContaining` rather than
+  `objectContaining`, or flatten first. The failure prints the whole array and
+  reads like a mismatch of values rather than of shape.

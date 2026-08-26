@@ -162,6 +162,35 @@ export function ammanDayKey(d: Date): string {
 }
 
 /**
+ * The inverse: the instant at which an Amman calendar day begins.
+ *
+ * A `date` column — `session_date`, `starts_on`, `expires_on` — arrives as a
+ * bare `yyyy-MM-dd` with no time and no zone. Handing that to `parseInstant`
+ * would produce midnight in whatever zone the phone happens to be in, and a
+ * phone east of Amman would then render the day before. This anchors it in
+ * Amman, which is the only zone this app has (5.1).
+ */
+export function ammanDayStart(dayKey: string): Date {
+  return fromZonedTime(`${dayKey}T00:00:00`, TZ);
+}
+
+/**
+ * A `yyyy-MM-dd`, as the local-midnight wall-clock `Date` A35's date picker
+ * (`DateField`) wants to open on.
+ *
+ * Deliberately not `ammanDayStart`: that anchors the day in Amman and returns
+ * an instant, which is right for a `date` column but wrong for a native
+ * picker's calendar wheel — the wheel reads a `Date`'s *local* fields, and a
+ * phone in a different zone would show the wrong day if handed an Amman
+ * instant. This builds the local fields directly instead, matching the wheel
+ * the same way a typed `yyyy-MM-dd` was never zone-converted either.
+ */
+export function dayKeyToCalendarDate(dayKey: string): Date {
+  const [year, month, day] = dayKey.split('-').map(Number);
+  return new Date(year ?? 1970, (month ?? 1) - 1, day ?? 1);
+}
+
+/**
  * Time of day, 12 hour, in Amman. "7:00 PM" in English, "7:00 مساءً" in
  * Arabic. Digits are Western in both languages. BUILD-SPEC 16.1.
  */
@@ -196,4 +225,101 @@ export function formatSessionDate(d: Date, locale: Locale): string {
  */
 export function formatSessionTimeRange(startsAt: Date, endsAt: Date, locale: Locale): string {
   return `${formatSessionTime(startsAt, locale)} – ${formatSessionTime(endsAt, locale)}`;
+}
+
+/**
+ * The Amman calendar month of an instant as `yyyy-MM`. This is what the report
+ * month picker holds and what keys its queries. BUILD-SPEC 15.12.
+ */
+export function ammanMonthKey(d: Date): string {
+  return formatInTimeZone(d, TZ, 'yyyy-MM');
+}
+
+/** The month the coach is standing in, in Amman. */
+export function currentAmmanMonthKey(): string {
+  return ammanMonthKey(nowInAmman());
+}
+
+/**
+ * A month key as the `date` a report RPC takes. The functions in migration
+ * 0036 all `date_trunc('month', p_month)` their argument, so the first of the
+ * month is both the honest value and the one they expect.
+ */
+export function monthKeyToDate(monthKey: string): string {
+  return `${monthKey}-01`;
+}
+
+/**
+ * Move a month key by whole months. `shiftMonthKey('2026-01', -1)` is
+ * `'2025-12'`.
+ *
+ * The arithmetic is on the key's own integers rather than on a Date, because a
+ * Date would drag a timezone into a question that has none: a month is a label
+ * on a calendar, and 31 January plus one month is a trap that this avoids
+ * entirely.
+ */
+export function shiftMonthKey(monthKey: string, delta: number): string {
+  const [yearPart, monthPart] = monthKey.split('-');
+  const year = Number(yearPart);
+  const month = Number(monthPart);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    throw new Error(`shiftMonthKey() requires a yyyy-MM key, received ${monthKey}`);
+  }
+
+  const zeroBased = year * 12 + (month - 1) + delta;
+  const shiftedYear = Math.floor(zeroBased / 12);
+  const shiftedMonth = zeroBased - shiftedYear * 12 + 1;
+
+  return `${String(shiftedYear).padStart(4, '0')}-${String(shiftedMonth).padStart(2, '0')}`;
+}
+
+/**
+ * A month for the picker: "August 2026", "آب 2026". Levantine month names and
+ * Western digits in both languages, exactly as `formatSessionDate`. 16.1.
+ */
+export function formatMonthLabel(monthKey: string, locale: Locale): string {
+  const [year, monthPart] = monthKey.split('-');
+  const monthIndex = Number(monthPart) - 1;
+  const month = locale === 'en' ? ENGLISH_MONTHS[monthIndex] : ARABIC_MONTHS[monthIndex];
+
+  return `${month ?? ''} ${year ?? ''}`.trim();
+}
+
+/**
+ * The Sunday-anchored week a `date` column falls in, formatted for a bar
+ * label. Weeks start on Sunday throughout this app, matching the weekday
+ * integers of 6.2 (0 = Sunday) and `report_revenue_by_week` in migration 0036.
+ */
+export function formatWeekLabel(dayKey: string, locale: Locale): string {
+  const start = ammanDayStart(dayKey);
+  const day = formatInTimeZone(start, TZ, 'd');
+  const monthIndex = Number(formatInTimeZone(start, TZ, 'M')) - 1;
+  const month = locale === 'en' ? ENGLISH_MONTHS[monthIndex] : ARABIC_MONTHS[monthIndex];
+
+  return `${day} ${month ?? ''}`;
+}
+
+/**
+ * A bare `time` column — `session_templates.start_time`, which arrives as
+ * `HH:mm:ss` — rendered like every other time in the app: 12 hour, Western
+ * digits, "7:30 PM" or "7:30 مساءً". 16.1.
+ *
+ * It has no date and therefore no instant, which is why it cannot go through
+ * `formatSessionTime`. A recurring slot is a time of day and nothing more.
+ */
+export function formatClockTime(clock: string, locale: Locale): string {
+  const [hourPart, minutePart] = clock.split(':');
+  const hour24 = Number(hourPart);
+  const minute = minutePart ?? '00';
+
+  if (!Number.isInteger(hour24) || hour24 < 0 || hour24 > 23) {
+    throw new Error(`formatClockTime() requires HH:mm, received ${clock}`);
+  }
+
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  const hourMinute = `${hour12}:${minute.padStart(2, '0')}`;
+
+  if (locale === 'en') return `${hourMinute} ${hour24 < 12 ? 'AM' : 'PM'}`;
+  return `${hourMinute} ${hour24 < 12 ? 'صباحاً' : 'مساءً'}`;
 }
