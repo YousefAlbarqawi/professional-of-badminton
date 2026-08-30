@@ -159,7 +159,16 @@ Exit 0 there means EAS's install phase will pass.
       The Play feature graphic and 512px listing icon are in
       `store/play-assets/`
 - [ ] Age rating 4+, category Sports
-- [ ] `eas submit`
+- [ ] **First release: upload the `.aab` by hand.** `eas submit` cannot do it.
+      The Google Play Developer API refuses to publish to a package that has
+      never had a release, so the very first bundle must go through the Play
+      Console UI — create the app, then Testing > Internal testing > Create new
+      release and upload the `.aab` from the EAS build page. Only after that
+      does the API path work
+- [ ] Google Play service account created and its JSON key wired into
+      `eas.json`'s `submit.production.android.serviceAccountKeyPath` — needed
+      for every release *after* the first, not for the first
+- [ ] `eas submit --platform android` for subsequent releases
 
 ## Play listing assets
 
