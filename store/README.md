@@ -147,7 +147,12 @@ Exit 0 there means EAS's install phase will pass.
       build. Done: the token is stored secret-visibility (readable only by the
       EAS builder, not by any UI) and the flag is gone, so the next production
       build uploads source maps
-- [ ] `eas build --profile production --platform all`
+- [x] `eas build --profile production --platform android` — done, 2026-08-30.
+      Version 1.0.0, version code 7, from commit `dcb3203`. Signed `.aab` at
+      the EAS build page (build `6bc6b189-60cc-4f46-80ee-6d6eadc29a4a`). This
+      is the bundle to upload by hand for the first release
+- [ ] `eas build --profile production --platform ios` — blocked on Apple
+      Developer Program enrollment
 - [ ] Smoke test on a physical iOS device and a physical Android device,
       against prod
 - [ ] Privacy policy URL (`https://professionalofbadminton.com/privacy-policy/`)

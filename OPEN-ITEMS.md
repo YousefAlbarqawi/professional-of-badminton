@@ -1236,6 +1236,50 @@ is for:
 - **Gym lighting and arm's length**, which is what 13.10's 18pt floor and the
   reports screen's dense money rows were sized for.
 
+### The Play developer account is Personal, which costs three weeks — found in the submission pass
+
+Not something BUILD-SPEC could have called out: 23.2 treats Play submission as
+a checklist item, and it is not one.
+
+The account exists and the $25 is paid — `Yousef Alkhatib`, account ID
+`8107503913762265459` — but two things about it were only visible by opening
+the console:
+
+**Nothing can be created yet.** *Create app* is disabled behind a lock reading
+"Complete account verifications to create new apps". Three verifications are
+outstanding, and every one of them is bound to a person rather than to this
+repository: an official identity document (Google warns it "may take a few
+days"), proof of access to a real Android device via the Play Console mobile
+app, and a contact phone number that is itself gated behind the identity check
+clearing. So the store listing, the data safety form, the screenshots and the
+privacy policy URL have no surface to be entered into yet.
+
+**It is a Personal account, and the type cannot be changed after creation.**
+Personal accounts created after 13 November 2023 must run a closed test with
+12 testers opted in continuously for 14 days before production access can even
+be *applied* for, and since 2026 Google checks that those testers actually used
+the app. An organization account is exempt, but needs a D-U-N-S number
+(~30 days) and a second registration, which is the slower road from here.
+
+**What this means for the release order.** The Android critical path is no
+longer "build, submit". It is: identity verification clears (days) → create the
+app and fill the listing → upload this `.aab` by hand → closed test with 12 real
+people for 14 continuous days → apply for production access → review. Three
+weeks minimum, and the clock does not start until the identity document is
+approved.
+
+The academy's own players are the natural 12: they are the real users, and the
+engagement check makes a roster of genuine testers worth more than a roster of
+volunteers.
+
+### The first production Android bundle exists — closed
+
+`eas build --platform android --profile production`, 2026-08-30: version 1.0.0,
+version code 7, built from commit `dcb3203` with source maps uploading to
+Sentry (the `SENTRY_DISABLE_AUTO_UPLOAD` escape hatch is gone and the build no
+longer needs it). Signed `.aab`, ready to upload the moment Play lets an app be
+created.
+
 ### The lockfile regression that failed the first submission build — closed
 
 `store/README.md`'s new "Before any production build" section, and the third
