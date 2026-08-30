@@ -116,15 +116,24 @@ Exit 0 there means EAS's install phase will pass.
 - [ ] `pob-prod`'s Authentication → SMTP Settings pointed at Resend (see
       "The production sender" below) — without it Supabase falls back to its
       own shared SMTP, which is rate limited to a handful of mails an hour
-- [ ] Version bumped in `app.config.ts`, build number incremented
-- [ ] Migrations applied to `pob-prod` — **before** the build is submitted,
-      never after. `supabase link --project-ref <prod>` then
-      `supabase db push`, and run the venue, cost, package and template
-      portions of `seed.sql` against prod (section 22). The dev-only portion
-      never goes near prod.
-- [ ] `pob-prod` cron jobs scheduled: all five of 8.6, plus the two deployment
-      invocations OPEN-ITEMS.md records (the payment proof purge and the push
-      outbox drain)
+- [x] Version bumped in `app.config.ts`, build number incremented — 1.0.0 for
+      the first release, and `appVersionSource: "remote"` with `autoIncrement`
+      carries the Android version code on EAS (7 as of the first
+      submission build)
+- [x] Migrations applied to `pob-prod` — **before** the build is submitted,
+      never after. All 44 are applied; `supabase migration list --linked`
+      shows local and remote agreeing on every one, including 0042, 0043 and
+      the version-alignment migration. The venue, cost, package and template
+      portions of `seed.sql` are in (2 venues, 12 templates, 5 packages,
+      counted against prod). The dev-only portion never went near prod, and
+      prod holds **zero** users, profiles, bookings, subscriptions, payments
+      and announcements — verified by count, so no dummy data ships
+- [x] `pob-prod` cron jobs scheduled: all seven are active — `generate-sessions`
+      (03:00 Amman), `lock-expired-sessions` (03:10), `void-expired-subscriptions`
+      (03:20), `purge-payment-proofs` (04:00), `advance-session-states` and
+      `close-started-waitlists` (every 5 min) and `drain-push-outbox` (every 15).
+      Confirmed firing, not merely registered: prod's `audit_log` carries 100
+      `session_instances` rows written by the generate and advance jobs
 - [x] EAS environment variables set for the `production` environment (see
       below). Eleven are set: the two Supabase values, the EAS project id, the
       WhatsApp number, the password reset URL, the CliQ alias and account name,
@@ -144,9 +153,36 @@ Exit 0 there means EAS's install phase will pass.
 - [ ] Privacy policy URL (`https://professionalofbadminton.com/privacy-policy/`)
       entered in App Store Connect and in Play Console
 - [ ] Play data safety form completed from `play-data-safety.md`
-- [ ] Screenshots uploaded per `screenshots.md`
+- [ ] Screenshots uploaded per `screenshots.md` — all four sets are captured
+      and committed under `store/screenshots/` (iOS 6.9" and Play phone, each
+      in both languages, six screens each), so this is an upload, not a capture.
+      The Play feature graphic and 512px listing icon are in
+      `store/play-assets/`
 - [ ] Age rating 4+, category Sports
 - [ ] `eas submit`
+
+## Play listing assets
+
+`store/play-assets/` holds the two things Play Console asks for that are not
+screenshots:
+
+| File                       | Size       | Where it goes                          |
+| -------------------------- | ---------- | -------------------------------------- |
+| `feature-graphic.en.png`   | 1024 × 500 | Main store listing, English            |
+| `feature-graphic.ar.png`   | 1024 × 500 | Main store listing, Arabic             |
+| `listing-icon-512.png`     | 512 × 512  | App icon on the listing                |
+
+Both feature graphics are flat PNG with no alpha, which is what Play requires.
+They are the app's own palette — `#111111` ground, `#A8D5BA` accent — with the
+brand mark from `assets/brand/pob-mark-transparent.svg` and the tagline from
+`listing.en.md` / `listing.ar.md`. The Arabic one mirrors the layout and not the
+mark: a logo does not flip.
+
+Play localises the feature graphic per listing language, so upload each under
+its own locale rather than picking one.
+
+The source HTML is not kept — these are rendered artefacts. To change them,
+rebuild from the same palette and re-export at exactly 1024 × 500.
 
 ## EAS environment variables
 
