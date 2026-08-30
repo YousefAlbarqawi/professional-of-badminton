@@ -8,7 +8,9 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { NativeStackHeaderProps } from '@react-navigation/native-stack';
 
+import { Icon, type IconName } from '@/components/primitives';
 import { AnnouncementDetailScreen } from '@/screens/player/AnnouncementDetailScreen';
 import { AnnouncementsScreen } from '@/screens/player/AnnouncementsScreen';
 import { BookingDetailScreen } from '@/screens/player/BookingDetailScreen';
@@ -20,6 +22,7 @@ import { ScheduleScreen } from '@/screens/player/ScheduleScreen';
 import { SessionDetailScreen } from '@/screens/player/SessionDetailScreen';
 import { colors } from '@/theme';
 
+import { ScreenHeader } from './ScreenHeader';
 import type {
   AnnouncementsStackParamList,
   MyBookingsStackParamList,
@@ -27,6 +30,32 @@ import type {
   ProfileStackParamList,
   ScheduleStackParamList,
 } from './types';
+
+const TAB_ICONS: Record<keyof PlayerTabParamList, { active: IconName; inactive: IconName }> = {
+  ScheduleTab: { active: 'calendar', inactive: 'calendar-outline' },
+  MyBookingsTab: { active: 'bookmark', inactive: 'bookmark-outline' },
+  Announcements: { active: 'megaphone', inactive: 'megaphone-outline' },
+  ProfileTab: { active: 'person-circle', inactive: 'person-circle-outline' },
+};
+
+function makeTabBarIcon(
+  tab: keyof PlayerTabParamList,
+): (props: { focused: boolean; color: string; size: number }) => React.ReactElement {
+  function TabBarIcon({
+    focused,
+    color,
+    size,
+  }: {
+    focused: boolean;
+    color: string;
+    size: number;
+  }): React.ReactElement {
+    return (
+      <Icon name={focused ? TAB_ICONS[tab].active : TAB_ICONS[tab].inactive} color={color} size={size} />
+    );
+  }
+  return TabBarIcon;
+}
 
 const Tabs = createBottomTabNavigator<PlayerTabParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
@@ -40,6 +69,8 @@ const stackScreenOptions = {
   headerShadowVisible: false,
   contentStyle: { backgroundColor: colors.bg },
   headerBackButtonDisplayMode: 'minimal',
+  // The whole bar is drawn by React Native, not UIKit. See ScreenHeader.
+  header: (props: NativeStackHeaderProps) => <ScreenHeader {...props} />,
 } as const;
 
 const ScheduleNavigator: React.FC = () => {
@@ -144,22 +175,38 @@ export const PlayerNavigator: React.FC = () => {
       <Tabs.Screen
         name="ScheduleTab"
         component={ScheduleNavigator}
-        options={{ title: t('tabs.schedule'), headerShown: false }}
+        options={{
+          title: t('tabs.schedule'),
+          headerShown: false,
+          tabBarIcon: makeTabBarIcon('ScheduleTab'),
+        }}
       />
       <Tabs.Screen
         name="MyBookingsTab"
         component={MyBookingsNavigator}
-        options={{ title: t('tabs.bookings'), headerShown: false }}
+        options={{
+          title: t('tabs.bookings'),
+          headerShown: false,
+          tabBarIcon: makeTabBarIcon('MyBookingsTab'),
+        }}
       />
       <Tabs.Screen
         name="Announcements"
         component={AnnouncementsNavigator}
-        options={{ title: t('tabs.announcements'), headerShown: false }}
+        options={{
+          title: t('tabs.announcements'),
+          headerShown: false,
+          tabBarIcon: makeTabBarIcon('Announcements'),
+        }}
       />
       <Tabs.Screen
         name="ProfileTab"
         component={ProfileNavigator}
-        options={{ title: t('tabs.profile'), headerShown: false }}
+        options={{
+          title: t('tabs.profile'),
+          headerShown: false,
+          tabBarIcon: makeTabBarIcon('ProfileTab'),
+        }}
       />
     </Tabs.Navigator>
   );

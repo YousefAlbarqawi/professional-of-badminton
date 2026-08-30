@@ -21,6 +21,12 @@ export interface SignInInput {
   password: string;
 }
 
+/** 14.3: the six digit code the confirmation email carries. */
+export interface VerifyEmailCodeInput {
+  email: string;
+  code: string;
+}
+
 /** What the app knows about who is signed in, before the profile loads. */
 export interface AuthUser {
   id: string;

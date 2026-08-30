@@ -132,6 +132,20 @@ export interface PlayerRecentSession {
 }
 
 /**
+ * One row of 15.8 section 2's "change history" — `audit_log` filtered to the
+ * rows where `tier` itself moved, since `trg_audit_profiles` also fires for
+ * role, visibility and custom-rate writes on the same profile row.
+ */
+export interface TierChangeEntry {
+  id: string;
+  fromTier: Tier | null;
+  toTier: Tier | null;
+  /** Null if the actor's own profile row no longer exists. */
+  actorName: string | null;
+  createdAt: Date;
+}
+
+/**
  * A screenshot, resized and compressed, ready to upload. 10.1 step 4.
  *
  * `bytes` rather than a path because `payment_proofs.file_size_bytes` is NOT

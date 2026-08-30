@@ -29,6 +29,7 @@ import type {
   RecordPaymentInput,
   ReviewRow,
   SessionMoneyGlance,
+  TierChangeEntry,
 } from './types';
 
 function toTier(value: string | null | undefined): Tier | null {
@@ -118,7 +119,7 @@ export async function fetchSessionReview(sessionId: string): Promise<ReviewRow[]
       `id, attendee_kind, player_id, guest_name, guest_tier, tier_snapshot,
        payment_method, payment_status, expected_fils, paid_fils, is_coach_slot,
        status, note, booked_at,
-       profiles ( first_name, last_name, tier ),
+       profiles!bookings_player_id_fkey ( first_name, last_name, tier ),
        payment_proofs ( storage_path )`,
     )
     .eq('session_id', sessionId)
@@ -420,6 +421,59 @@ export async function fetchPlayerIdentity(playerId: string): Promise<PlayerIdent
       data.custom_rate_extended_fils === null ? null : (data.custom_rate_extended_fils as Fils),
     role: data.role,
   };
+}
+
+interface TierAuditRecord {
+  id: number;
+  before: { tier?: string | null } | null;
+  after: { tier?: string | null } | null;
+  created_at: string;
+  actor: { first_name: string; last_name: string } | null;
+}
+
+// Raw rows fetched before the tier-only filter below, capped generously since
+// `trg_audit_profiles` also fires for role, visibility and rate writes on the
+// same profile row and every one of those lands in this same result set.
+const TIER_HISTORY_FETCH_LIMIT = 100;
+
+/**
+ * 15.8 section 2: "the change history." `audit_log` is coach-only (7.3,
+ * D73's "an admin can do everything the coach can do except see the books"),
+ * so RLS's `audit_log_select_coach` is what actually keeps this from an admin
+ * rather than anything checked here — the same shape as `Extend` and section
+ * 8's role toggle, both hidden from an admin on this same screen.
+ *
+ * `trg_audit_profiles` (migration 0011) fires on role, visibility, tier and
+ * custom-rate writes alike and writes one row per UPDATE covering whichever
+ * of those changed, so a plain select the same shape as
+ * `fetchPlayerRecentSessions` is filtered down here to the rows where `tier`
+ * itself moved — there is no PostgREST filter that compares two jsonb columns
+ * against each other, so this is a client-side narrowing of a capped fetch
+ * rather than a query the server can express.
+ */
+export async function fetchPlayerTierHistory(playerId: string): Promise<TierChangeEntry[]> {
+  const { data, error } = await supabase
+    .from('audit_log')
+    .select('id, before, after, created_at, actor:profiles!audit_log_actor_id_fkey(first_name, last_name)')
+    .eq('entity', 'profiles')
+    .eq('entity_id', playerId)
+    .eq('action', 'UPDATE')
+    .order('created_at', { ascending: false })
+    .limit(TIER_HISTORY_FETCH_LIMIT);
+
+  if (error) throw error;
+
+  const rows = data as unknown as TierAuditRecord[];
+
+  return rows
+    .filter((row) => (row.before?.tier ?? null) !== (row.after?.tier ?? null))
+    .map((row) => ({
+      id: String(row.id),
+      fromTier: toTier(row.before?.tier),
+      toTier: toTier(row.after?.tier),
+      actorName: row.actor === null ? null : `${row.actor.first_name} ${row.actor.last_name}`.trim(),
+      createdAt: parseInstant(row.created_at),
+    }));
 }
 
 // ── 15.8 sections 2, 3, 4 and 8: guarded profile columns ────

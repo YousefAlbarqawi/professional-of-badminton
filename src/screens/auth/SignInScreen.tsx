@@ -9,6 +9,7 @@
  * taken to the verify screen, which is already waiting for exactly that link.
  */
 import React, { useCallback, useState } from 'react';
+import { StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -74,7 +75,12 @@ export const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text variant="small" tone="secondary">
             {t('auth.noAccount')}
           </Text>
-          <Button label={t('auth.signUp')} onPress={goToSignUp} variant="ghost" />
+          <Button
+            label={t('auth.signUp')}
+            onPress={goToSignUp}
+            variant="ghost"
+            style={styles.footerButton}
+          />
         </>
       }
     >
@@ -131,5 +137,11 @@ export const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
     </AuthLayout>
   );
 };
+
+const styles = StyleSheet.create({
+  footerButton: {
+    alignSelf: 'center',
+  },
+});
 
 export default SignInScreen;

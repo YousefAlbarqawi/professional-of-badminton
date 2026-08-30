@@ -34,9 +34,12 @@
  * `trg_guard_profile` (0009) is what actually decides who may touch these
  * five columns and who may promote to coach — RLS and its trigger are the
  * boundary, not a function, per CLAUDE.md. Every write also fires
- * `trg_audit_profiles` (0011), so each of these four sections already has an
- * audit trail even though nothing here reads it back — that reader is what
- * "and its change history" in OPEN-ITEMS.md's tier item still means.
+ * `trg_audit_profiles` (0011), and section 2's own "change history" now reads
+ * that trail back — `fetchPlayerTierHistory` filters it down to the rows
+ * where `tier` itself moved, since the same trigger also covers role,
+ * visibility and rate. `audit_log` is coach-only (7.3), so the history is
+ * gated on `isCoach` the same way *Extend* and section 8's role toggle
+ * already are on this screen.
  *
  * ── Section 5, and the one rule underneath it ─────────────
  * Every credit figure on this screen is `remainingCredits`, the sum of the
@@ -69,6 +72,7 @@ import {
   PaymentMethodChip,
   SubscriptionCard,
   TierBadge,
+  TierChangeRow,
   TierPickerRow,
 } from '@/components/domain';
 import {
@@ -96,6 +100,7 @@ import {
   usePlayerBalance,
   usePlayerIdentity,
   usePlayerRecentSessions,
+  usePlayerTierHistory,
 } from '@/features/payments/queries';
 import { statusLabelKey, statusTone } from '@/features/payments/reviewState';
 import type { BalanceEntry, PlayerIdentity, PlayerRecentSession } from '@/features/payments/types';
@@ -137,6 +142,10 @@ export const PlayerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
   // either.
   const me = useMyProfile();
   const isCoach = me.data?.role === 'coach';
+  // 15.8 section 2's history: audit_log is coach-only (7.3), so this is
+  // gated the same way Extend and section 8's role toggle already are —
+  // an admin never issues the request at all.
+  const tierHistory = usePlayerTierHistory(playerId, isCoach);
 
   const [isAdding, setIsAdding] = useState(false);
   const [deleting, setDeleting] = useState<BalanceEntry | null>(null);
@@ -171,7 +180,8 @@ export const PlayerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
     void balance.refetch();
     void recentSessions.refetch();
     void subscriptions.refetch();
-  }, [balance, identity, recentSessions, subscriptions]);
+    if (isCoach) void tierHistory.refetch();
+  }, [balance, identity, isCoach, recentSessions, subscriptions, tierHistory]);
 
   const closeExtend = useCallback((): void => setExtending(null), []);
 
@@ -221,7 +231,8 @@ export const PlayerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
             identity.isFetching ||
             balance.isFetching ||
             recentSessions.isFetching ||
-            subscriptions.isFetching
+            subscriptions.isFetching ||
+            (isCoach && tierHistory.isFetching)
           }
           onRefresh={refetch}
           tintColor={theme.colors.textSecondary}
@@ -278,6 +289,43 @@ export const PlayerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
               <Text variant="small" tone="danger" testID="profile-tier-error">
                 {t(paymentErrorMessageKey(setTier.error))}
               </Text>
+            ) : null}
+
+            {/* Coach only — audit_log's RLS mirrors this: an admin would see
+                nothing here even if it were rendered. */}
+            {isCoach ? (
+              <View style={{ paddingTop: theme.spacing.md }}>
+                <Text variant="heading">{t('admin.profile.tier.history')}</Text>
+                <View style={{ paddingTop: theme.spacing.xs }}>
+                  {tierHistory.isPending ? (
+                    <SkeletonCard testID="tier-history-loading" />
+                  ) : tierHistory.isError ? (
+                    <ErrorState
+                      message={t(paymentErrorMessageKey(tierHistory.error))}
+                      onRetry={refetch}
+                      isRetrying={tierHistory.isFetching}
+                      testID="tier-history-error"
+                    />
+                  ) : tierHistory.data === undefined || tierHistory.data.length === 0 ? (
+                    <EmptyState
+                      message={t('admin.profile.tier.historyEmpty')}
+                      showWhatsApp={false}
+                      testID="tier-history-empty"
+                    />
+                  ) : (
+                    tierHistory.data.map((change) => (
+                      <TierChangeRow
+                        key={change.id}
+                        testID={`tier-history-${change.id}`}
+                        fromTier={change.fromTier}
+                        toTier={change.toTier}
+                        actorName={change.actorName}
+                        createdAt={change.createdAt}
+                      />
+                    ))
+                  )}
+                </View>
+              </View>
             ) : null}
           </Card>
 

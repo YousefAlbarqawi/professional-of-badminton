@@ -53,3 +53,7 @@ coverage/
 
 # playwright mcp session artifacts
 .playwright-mcp/
+
+# local env backups — these carry SMTP_PASSWORD (a real Resend key)
+.env.bak-*
+package-lock.json.bak

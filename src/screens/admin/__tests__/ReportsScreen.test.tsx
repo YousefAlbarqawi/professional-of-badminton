@@ -54,6 +54,9 @@ const TOTALS: ReportTotals = {
   courtCostFils: 1570000 as Fils,
   waterCostFils: 77500 as Fils,
   coachFeeFils: 40000 as Fils,
+  // Migration 0043's extra cost lines. Zero here, so the panel's extras row
+  // stays hidden — a month with no snacks and no overtime has nothing to show.
+  extrasFils: 0 as Fils,
   coachFeeAccruedFils: 0 as Fils,
   costFils: 1687500 as Fils,
   cashCostFils: 1687500 as Fils,
@@ -295,8 +298,8 @@ describe('15.12 section 1, revenue', () => {
     const screen = await renderScreen();
 
     expect(screen.getByTestId('report-revenue-weeks')).toBeTruthy();
-    expect(screen.getByText('5 July')).toBeTruthy();
-    expect(screen.getByText('12 July')).toBeTruthy();
+    expect(screen.getByText('5/7')).toBeTruthy();
+    expect(screen.getByText('12/7')).toBeTruthy();
   });
 });
 
@@ -469,7 +472,7 @@ describe('the other states', () => {
 });
 
 describe('16.1, in Arabic', () => {
-  it('reads in Arabic with Western digits and Levantine month names', async () => {
+  it('reads in Arabic with Western digits', async () => {
     const screen = await renderScreen({}, 'ar');
 
     // "Revenue" heads section 1 and appears again as a line inside section 3.

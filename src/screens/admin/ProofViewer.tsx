@@ -25,6 +25,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
 import { Button, Text } from '@/components/primitives';
@@ -110,6 +111,7 @@ export const ProofViewer: React.FC<ProofViewerProps> = ({ storagePath, title, on
   const { t } = useTranslation();
   const theme = useTheme();
 
+  const insets = useSafeAreaInsets();
   const isOpen = storagePath !== null;
   const proof = useProofUrl(storagePath, isOpen);
   const [isFilling, setIsFilling] = useState(false);
@@ -122,12 +124,17 @@ export const ProofViewer: React.FC<ProofViewerProps> = ({ storagePath, title, on
   return (
     <Modal visible={isOpen} animationType="fade" onRequestClose={onClose} transparent={false}>
       <View style={{ flex: 1, backgroundColor: theme.colors.bg }} testID="proof-viewer">
+        {/* A full-screen `Modal` has no navigation header and no safe area of
+            its own, so *Close* landed under the notch and was barely tappable.
+            The insets are applied here rather than with `SafeAreaView` because
+            the image below deliberately runs to all four edges. */}
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
             gap: theme.spacing.sm,
             padding: theme.spacing.md,
+            paddingTop: insets.top + theme.spacing.sm,
           }}
         >
           <Text variant="heading" style={{ flex: 1 }} numberOfLines={1}>
@@ -168,7 +175,11 @@ export const ProofViewer: React.FC<ProofViewerProps> = ({ storagePath, title, on
         <Text
           variant="caption"
           tone="tertiary"
-          style={{ padding: theme.spacing.md, textAlign: 'center' }}
+          align="center"
+          style={{
+            padding: theme.spacing.md,
+            paddingBottom: Math.max(insets.bottom, theme.spacing.md),
+          }}
         >
           {t('admin.money.proofZoomHint')}
         </Text>

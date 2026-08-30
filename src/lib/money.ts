@@ -40,6 +40,24 @@ export function fils(jd: number): Fils {
   return bankersRound(jd * FILS_PER_JD) as Fils;
 }
 
+/**
+ * `fils()` for a value that came out of a text field, where the answer may be
+ * that there is no number yet.
+ *
+ * `fils()` throws on anything non-finite, and that is right at a form's edge:
+ * a submit must not turn a typo into NaN fils. It is wrong for a live preview,
+ * which runs on every keystroke including the ones that are not a number yet
+ * — an empty field, a lone "-", a stray letter. Those are ordinary states of a
+ * field being typed into, not errors, and they should render as "no amount"
+ * rather than take the screen down mid-keystroke.
+ */
+export function parseFils(jd: string): Fils | null {
+  const trimmed = jd.trim();
+  if (trimmed === '') return null;
+  const value = Number(trimmed);
+  return Number.isFinite(value) ? fils(value) : null;
+}
+
 /** Convert fils back to dinars. Display only — never arithmetic. */
 export function toJD(f: Fils): number {
   return f / FILS_PER_JD;

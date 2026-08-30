@@ -25,7 +25,9 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { NativeStackHeaderProps } from '@react-navigation/native-stack';
 
+import { Icon, type IconName } from '@/components/primitives';
 import { AdjustCreditsScreen } from '@/screens/admin/AdjustCreditsScreen';
 import { AnnouncementComposeScreen } from '@/screens/admin/AnnouncementComposeScreen';
 import { AnnouncementListScreen } from '@/screens/admin/AnnouncementListScreen';
@@ -44,6 +46,7 @@ import { ProfileScreen } from '@/screens/player/ProfileScreen';
 import { SubscriptionsScreen } from '@/screens/player/SubscriptionsScreen';
 import { colors } from '@/theme';
 
+import { ScreenHeader } from './ScreenHeader';
 import type {
   AdminScheduleStackParamList,
   AdminTabParamList,
@@ -51,6 +54,32 @@ import type {
   PlayersStackParamList,
   TodayStackParamList,
 } from './types';
+
+const TAB_ICONS: Record<keyof AdminTabParamList, { active: IconName; inactive: IconName }> = {
+  Today: { active: 'today', inactive: 'today-outline' },
+  AdminSchedule: { active: 'calendar', inactive: 'calendar-outline' },
+  Players: { active: 'people', inactive: 'people-outline' },
+  More: { active: 'ellipsis-horizontal-circle', inactive: 'ellipsis-horizontal-circle-outline' },
+};
+
+function makeTabBarIcon(
+  tab: keyof AdminTabParamList,
+): (props: { focused: boolean; color: string; size: number }) => React.ReactElement {
+  function TabBarIcon({
+    focused,
+    color,
+    size,
+  }: {
+    focused: boolean;
+    color: string;
+    size: number;
+  }): React.ReactElement {
+    return (
+      <Icon name={focused ? TAB_ICONS[tab].active : TAB_ICONS[tab].inactive} color={color} size={size} />
+    );
+  }
+  return TabBarIcon;
+}
 
 const Tabs = createBottomTabNavigator<AdminTabParamList>();
 const MoreStack = createNativeStackNavigator<MoreStackParamList>();
@@ -64,6 +93,8 @@ const stackScreenOptions = {
   headerShadowVisible: false,
   contentStyle: { backgroundColor: colors.bg },
   headerBackButtonDisplayMode: 'minimal',
+  // The whole bar is drawn by React Native, not UIKit. See ScreenHeader.
+  header: (props: NativeStackHeaderProps) => <ScreenHeader {...props} />,
 } as const;
 
 const TodayNavigator: React.FC = () => {
@@ -226,22 +257,30 @@ export const AdminNavigator: React.FC = () => {
       <Tabs.Screen
         name="Today"
         component={TodayNavigator}
-        options={{ title: t('tabs.today'), headerShown: false }}
+        options={{ title: t('tabs.today'), headerShown: false, tabBarIcon: makeTabBarIcon('Today') }}
       />
       <Tabs.Screen
         name="AdminSchedule"
         component={AdminScheduleNavigator}
-        options={{ title: t('tabs.schedule'), headerShown: false }}
+        options={{
+          title: t('tabs.schedule'),
+          headerShown: false,
+          tabBarIcon: makeTabBarIcon('AdminSchedule'),
+        }}
       />
       <Tabs.Screen
         name="Players"
         component={PlayersNavigator}
-        options={{ title: t('tabs.players'), headerShown: false }}
+        options={{
+          title: t('tabs.players'),
+          headerShown: false,
+          tabBarIcon: makeTabBarIcon('Players'),
+        }}
       />
       <Tabs.Screen
         name="More"
         component={MoreNavigator}
-        options={{ title: t('tabs.more'), headerShown: false }}
+        options={{ title: t('tabs.more'), headerShown: false, tabBarIcon: makeTabBarIcon('More') }}
       />
     </Tabs.Navigator>
   );

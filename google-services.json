@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "466730832514",
+    "project_id": "professional-of-badminton",
+    "storage_bucket": "professional-of-badminton.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:466730832514:android:4e1f708b316ecfa3f7da9b",
+        "android_client_info": {
+          "package_name": "jo.professionalofbadminton.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFN89xXvm_VHgprPB-ZlOT8uxznyhd5Uc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -148,6 +148,16 @@ export const ReportsMoneyPanel: React.FC<ReportsMoneyPanelProps> = ({ totals, we
           }
           testID="report-cost-coach"
         />
+        {/* Hidden at zero, unlike the three rated costs above it: a month
+            with no snacks and no overtime has nothing to explain, and the
+            line only earns its row when something is on it. */}
+        {totals.extrasFils > 0 ? (
+          <ReportStatLine
+            label={t('admin.reports.profit.extras')}
+            value={formatMoney(totals.extrasFils, theme.locale)}
+            testID="report-cost-extras"
+          />
+        ) : null}
         {totals.coachFeeAccruedFils > 0 ? (
           <ReportStatLine
             label={t('admin.reports.profit.cashSpent')}

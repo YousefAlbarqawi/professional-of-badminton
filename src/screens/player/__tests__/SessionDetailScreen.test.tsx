@@ -192,7 +192,7 @@ describe('always visible', () => {
     expect(screen.getByText('International Independent Schools')).toBeTruthy();
     expect(screen.getByText('Khalda')).toBeTruthy();
     expect(screen.getByTestId('fact-when')).toBeTruthy();
-    expect(screen.getByText('24 August 2026 · 7:00 PM – 8:30 PM')).toBeTruthy();
+    expect(screen.getByText('24/8/2026 · 7:00 PM – 8:30 PM')).toBeTruthy();
     expect(screen.getByText('4 courts')).toBeTruthy();
     expect(screen.getByText('6.000 JD')).toBeTruthy();
   });

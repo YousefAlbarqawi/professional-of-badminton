@@ -6,7 +6,7 @@
  * approval — D13 lets anyone who downloads the app register and book.
  */
 import React, { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -84,7 +84,12 @@ export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
           <Text variant="small" tone="secondary">
             {t('auth.haveAccount')}
           </Text>
-          <Button label={t('auth.signIn')} onPress={goToSignIn} variant="ghost" />
+          <Button
+            label={t('auth.signIn')}
+            onPress={goToSignIn}
+            variant="ghost"
+            style={styles.footerButton}
+          />
         </>
       }
     >
@@ -194,5 +199,11 @@ export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
     </AuthLayout>
   );
 };
+
+const styles = StyleSheet.create({
+  footerButton: {
+    alignSelf: 'center',
+  },
+});
 
 export default SignUpScreen;

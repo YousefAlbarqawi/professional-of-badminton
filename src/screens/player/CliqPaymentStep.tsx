@@ -13,11 +13,13 @@
  * (10.2), and D34 makes attaching one enough to confirm the spot on the spot.
  *
  * ── The alias ─────────────────────────────────────────────
- * Section 24 question 2 is still open, so `hasCliqAlias` is false until the
- * client says what the academy's alias is. While it is false the alias is not
- * shown at all and the player is sent to WhatsApp for it, because a
- * placeholder alias on a real phone would send somebody's money to nobody.
- * Everything else in the flow works.
+ * Section 24 question 2 is answered: `prof2023`, in `src/lib/config.ts`. The
+ * account holder's name is shown under it because the CliQ account is a
+ * personal one — a player who sees a name he does not recognise in his banking
+ * app after typing the alias should read it as confirmation, not as a reason to
+ * stop. The WhatsApp button at the foot of the step is D72's, and it stays now
+ * that the alias is always shown: the transfer happens in another app, which is
+ * where a player finds out something is wrong with it.
  */
 import React, { useCallback, useState } from 'react';
 import { Image, View } from 'react-native';
@@ -28,7 +30,7 @@ import { Button, Card, Text, WhatsAppButton } from '@/components/primitives';
 import { pickAndPrepareProof } from '@/features/payments/cliqUpload';
 import { paymentErrorMessageKey } from '@/features/payments/errors';
 import type { PreparedProof } from '@/features/payments/types';
-import { config, hasCliqAlias } from '@/lib/config';
+import { config } from '@/lib/config';
 import { formatMoney, type Fils } from '@/lib/money';
 import { useTheme } from '@/theme';
 
@@ -79,30 +81,27 @@ export const CliqPaymentStep: React.FC<CliqPaymentStepProps> = ({
           {t('payment.cliqTransferTo')}
         </Text>
 
-        {hasCliqAlias ? (
-          <>
-            <Text variant="title" testID="cliq-alias">
-              {config.cliqAlias}
-            </Text>
-            <View style={{ paddingTop: theme.spacing.sm }}>
-              <Button
-                label={hasCopied ? t('payment.aliasCopied') : t('payment.copyAlias')}
-                onPress={copyAlias}
-                variant="secondary"
-                testID="cliq-copy"
-              />
-            </View>
-          </>
-        ) : (
-          // Nothing invented. The player gets the alias from the coach, and the
-          // rest of the flow still works.
-          <View style={{ gap: theme.spacing.sm }} testID="cliq-alias-missing">
-            <Text variant="small" tone="warning">
-              {t('payment.aliasUnavailable')}
-            </Text>
-            <WhatsAppButton isFullWidth />
-          </View>
-        )}
+        <Text variant="title" testID="cliq-alias">
+          {config.cliqAlias}
+        </Text>
+
+        <View style={{ paddingTop: theme.spacing.sm }}>
+          <Text variant="caption" tone="tertiary">
+            {t('payment.cliqAccountLabel')}
+          </Text>
+          <Text variant="small" tone="secondary" testID="cliq-account-name">
+            {config.cliqAccountName}
+          </Text>
+        </View>
+
+        <View style={{ paddingTop: theme.spacing.sm }}>
+          <Button
+            label={hasCopied ? t('payment.aliasCopied') : t('payment.copyAlias')}
+            onPress={copyAlias}
+            variant="secondary"
+            testID="cliq-copy"
+          />
+        </View>
 
         <View
           style={{
@@ -170,6 +169,8 @@ export const CliqPaymentStep: React.FC<CliqPaymentStepProps> = ({
       <Text variant="caption" tone="tertiary">
         {t('payment.cliqNoApproval')}
       </Text>
+
+      <WhatsAppButton variant="ghost" isFullWidth />
     </View>
   );
 };

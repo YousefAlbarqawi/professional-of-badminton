@@ -282,7 +282,7 @@ describe('Arabic', () => {
   it('renders the row in Arabic with Western digits. 16.1', async () => {
     const screen = await renderScreen({}, 'ar');
 
-    expect(screen.getByText('27 زيارة')).toBeTruthy();
+    expect(screen.getByText('27 زيارةً')).toBeTruthy();
     expect(screen.getByText('الدرجة 0')).toBeTruthy();
   });
 });

@@ -27,6 +27,7 @@ const ORIGINAL = {
   EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
   EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
   EXPO_PUBLIC_CLIQ_ALIAS: process.env.EXPO_PUBLIC_CLIQ_ALIAS,
+  EXPO_PUBLIC_CLIQ_ACCOUNT_NAME: process.env.EXPO_PUBLIC_CLIQ_ACCOUNT_NAME,
   EXPO_PUBLIC_EAS_PROJECT_ID: process.env.EXPO_PUBLIC_EAS_PROJECT_ID,
   EXPO_PUBLIC_PASSWORD_RESET_URL: process.env.EXPO_PUBLIC_PASSWORD_RESET_URL,
 };
@@ -93,15 +94,18 @@ describe('2.5, the values that have a working default', () => {
     expect(loaded.config.whatsappNumber).toBe('962792841696');
   });
 
-  it('knows the CliQ alias is still a placeholder', () => {
-    // Section 24 question 2. A fabricated alias on a real phone would send
-    // somebody's money to nobody, so the sheet hides it until this is true.
+  it('falls back to the academy’s CliQ alias and account holder', () => {
+    // Section 24 question 2, answered. Hardcoded like the WhatsApp number
+    // above, so a build whose EAS environment is missing the variable still
+    // shows the right alias rather than none at all.
     const loaded = loadConfig({
       EXPO_PUBLIC_ENVIRONMENT: 'development',
       EXPO_PUBLIC_CLIQ_ALIAS: '',
+      EXPO_PUBLIC_CLIQ_ACCOUNT_NAME: '',
     });
 
-    expect(loaded.hasCliqAlias).toBe(false);
+    expect(loaded.config.cliqAlias).toBe('prof2023');
+    expect(loaded.config.cliqAccountName).toBe('MOHAMMAD YOUSEF A. ABUDABBOUR');
   });
 
   it('knows push cannot work without an EAS project', () => {
@@ -114,7 +118,7 @@ describe('2.5, the values that have a working default', () => {
   });
 
   it('knows the password reset page is not hosted yet', () => {
-    // Section 24 question 8. Until GitHub Pages exists, `requestPasswordReset`
+    // Section 24 question 8. With no hosted page, `requestPasswordReset`
     // omits `redirectTo` rather than pointing at a URL nobody has stood up.
     const loaded = loadConfig({
       EXPO_PUBLIC_ENVIRONMENT: 'development',
@@ -129,7 +133,7 @@ describe('2.5, the values that have a working default', () => {
     const loaded = loadConfig({
       EXPO_PUBLIC_ENVIRONMENT: 'development',
       EXPO_PUBLIC_PASSWORD_RESET_URL:
-        'https://example.github.io/professional-of-badminton/reset-password/',
+        'https://professionalofbadminton.com/reset-password/',
     });
 
     expect(loaded.hasPasswordResetUrl).toBe(true);

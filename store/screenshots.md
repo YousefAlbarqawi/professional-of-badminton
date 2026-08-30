@@ -3,20 +3,28 @@
 BUILD-SPEC 23.3: "Screenshots in both Arabic and English, for both phone
 sizes."
 
-That is **four sets**: `en` and `ar`, at each of the two required sizes. The
-same six screens in each, so the two languages sit side by side in the listing
-and a reader can see the app mirrors properly.
+That is **three sets**: `en` and `ar` at App Store 6.9", and `en` and `ar` for
+Play. The same six screens in each, so the two languages sit side by side in
+the listing and a reader can see the app mirrors properly.
+
+**The App Store 6.5" set is deliberately skipped.** App Store Connect generates
+it from the 6.9" set, so the only thing the extra pass buys is a native render
+instead of a downscale, on iPhone 11 Pro Max class hardware. 23.3 asks for both
+phone sizes; this is the one place the build does not follow it, decided
+2026-08-29. If App Store Connect ever marks 6.5" as required at upload, take it
+then — the capture recipe below is unchanged.
 
 ## Sizes
 
 | Store     | Size  | Pixels                    | Device to capture on        |
 | --------- | ----- | ------------------------- | --------------------------- |
 | App Store | 6.9"  | 1320 × 2868               | iPhone 17 Pro Max simulator |
-| App Store | 6.5"  | 1242 × 2688               | iPhone 11 Pro Max simulator |
+| App Store | 6.5"  | 1242 × 2688               | Skipped — see above         |
 | Play      | Phone | 1080 × 1920 minimum, 16:9 | Pixel 8 emulator            |
 
-App Store Connect accepts the 6.9" set and scales it for smaller sizes, but
-23.3 asks for both, so take both.
+Play needs its own capture rather than a scaled iPhone one: the status bar,
+the navigation gesture bar and the system font are all Android's, and a
+reviewer can tell.
 
 ## The six screens, in order
 

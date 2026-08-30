@@ -12,6 +12,8 @@ import {
   normaliseSignUp,
   signInSchema,
   signUpSchema,
+  verifyCodeSchema,
+  normaliseCode,
   type SignUpFormValues,
 } from '../schemas';
 
@@ -59,8 +61,54 @@ describe('sign up validation', () => {
     });
   });
 
-  it('reports the last name against its own key', () => {
-    expect(messageFor({ ...VALID, lastName: '' }, 'lastName')).toBe('validation.lastNameRequired');
+  describe('names are Arabic and English letters only', () => {
+    it.each([
+      ['Yousef', 'plain English'],
+      ['خطيب', 'plain Arabic'],
+      ['عبد الله', 'an Arabic name with a space'],
+      ['Al-Khatib', 'a hyphenated name'],
+      ["D'Souza", 'a straight apostrophe'],
+      ['D\u2019Souza', 'the curly apostrophe an iOS keyboard substitutes'],
+      ['José', 'an accented Latin letter'],
+      ['مُحَمَّد', 'Arabic with harakat'],
+    ])('accepts %p (%s)', (firstName) => {
+      expect(signUpSchema.safeParse({ ...VALID, firstName }).success).toBe(true);
+    });
+
+    it.each([
+      ['Ali1', 'a Western digit'],
+      ['علي٠', 'an Arabic-Indic digit, which sits between two Arabic letter blocks'],
+      ['Ali!', 'punctuation'],
+      ['Ali_B', 'an underscore'],
+      ['<script>', 'markup'],
+      ['Ali 😀', 'an emoji'],
+      ['علي\u0640\u0640', 'tatweel, which stretches a word rather than spelling one'],
+    ])('rejects %p (%s)', (firstName) => {
+      expect(messageFor({ ...VALID, firstName }, 'firstName')).toBe('validation.firstNameLetters');
+    });
+
+    it('rejects punctuation with no letter in it at all', () => {
+      expect(messageFor({ ...VALID, firstName: '---' }, 'firstName')).toBe(
+        'validation.firstNameLetters',
+      );
+    });
+
+    it('says "required" rather than "letters only" for an empty field', () => {
+      // Both refinements fail on an empty value; the length one is first so
+      // that the field does not complain about the characters in nothing.
+      expect(messageFor({ ...VALID, firstName: '' }, 'firstName')).toBe(
+        'validation.firstNameRequired',
+      );
+    });
+
+    it('reports the family name against its own keys', () => {
+      expect(messageFor({ ...VALID, lastName: '' }, 'lastName')).toBe(
+        'validation.lastNameRequired',
+      );
+      expect(messageFor({ ...VALID, lastName: 'Alkhatib2' }, 'lastName')).toBe(
+        'validation.lastNameLetters',
+      );
+    });
   });
 
   describe('email', () => {
@@ -178,5 +226,23 @@ describe('single address forms', () => {
   it.each([forgotPasswordSchema, changeEmailSchema])('requires a real address', (schema) => {
     expect(schema.safeParse({ email: 'player@example.com' }).success).toBe(true);
     expect(schema.safeParse({ email: 'nope' }).success).toBe(false);
+  });
+});
+
+describe('verifyCodeSchema', () => {
+  it.each(['123456', '000000', ' 123456 ', '123 456'])('accepts %p', (code) => {
+    expect(verifyCodeSchema.safeParse({ code }).success).toBe(true);
+  });
+
+  it.each(['', '12345', '1234567', 'abcdef', '12345a'])('rejects %p', (code) => {
+    const result = verifyCodeSchema.safeParse({ code });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe('validation.codeInvalid');
+    }
+  });
+
+  it('strips whatever whitespace a mail client brought with it', () => {
+    expect(normaliseCode(' 123 456 ')).toBe('123456');
   });
 });

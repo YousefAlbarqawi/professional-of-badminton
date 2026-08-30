@@ -255,26 +255,23 @@ describe('formatSessionTime', () => {
 });
 
 describe('formatSessionDate', () => {
-  it('uses English month names', () => {
-    expect(formatSessionDate(SESSION_START, 'en')).toBe('22 August 2026');
+  // 16.1's spelled month, amended per client instruction to a day-first
+  // numeric date — see OPEN-ITEMS.md.
+  it('writes the date day first, with no month name', () => {
+    expect(formatSessionDate(SESSION_START, 'en')).toBe('22/8/2026');
+    expect(formatSessionDate(new Date('2026-01-15T12:00:00.000Z'), 'en')).toBe('15/1/2026');
+    expect(formatSessionDate(new Date('2026-12-15T12:00:00.000Z'), 'en')).toBe('15/12/2026');
   });
 
-  it('uses Levantine month names, not transliterated Gregorian ones', () => {
-    // BUILD-SPEC 16.1.
-    expect(formatSessionDate(SESSION_START, 'ar')).toBe('22 آب 2026');
-    expect(formatSessionDate(new Date('2026-01-15T12:00:00.000Z'), 'ar')).toBe(
-      '15 كانون الثاني 2026',
-    );
-    expect(formatSessionDate(new Date('2026-10-15T12:00:00.000Z'), 'ar')).toBe(
-      '15 تشرين الأول 2026',
-    );
-    expect(formatSessionDate(new Date('2026-12-15T12:00:00.000Z'), 'ar')).toBe(
-      '15 كانون الأول 2026',
-    );
+  it('reads identically in both languages', () => {
+    // Western digits in both (16.1), and no month name left to translate, so
+    // the two locales now produce the same string by construction.
+    expect(formatSessionDate(SESSION_START, 'ar')).toBe('22/8/2026');
+    expect(formatSessionDate(SESSION_START, 'ar')).toBe(formatSessionDate(SESSION_START, 'en'));
   });
 
   it('uses the Amman day, not the UTC day', () => {
-    expect(formatSessionDate(new Date('2026-08-22T22:00:00.000Z'), 'en')).toBe('23 August 2026');
+    expect(formatSessionDate(new Date('2026-08-22T22:00:00.000Z'), 'en')).toBe('23/8/2026');
   });
 });
 
@@ -340,25 +337,36 @@ describe('monthKeyToDate', () => {
 });
 
 describe('formatMonthLabel', () => {
-  it('uses English month names', () => {
-    expect(formatMonthLabel('2026-08', 'en')).toBe('August 2026');
+  it('writes the month as a number, with no leading zero', () => {
+    // 16.1's spelled month, amended per client instruction — see time.ts. It
+    // is month/year so it reads as the tail of `formatSessionDate`'s
+    // day/month/year rather than as a second convention.
+    expect(formatMonthLabel('2026-08', 'en')).toBe('8/2026');
+    expect(formatMonthLabel('2026-01', 'en')).toBe('1/2026');
+    expect(formatMonthLabel('2026-12', 'en')).toBe('12/2026');
   });
 
-  it('uses Levantine month names and Western digits', () => {
-    // BUILD-SPEC 16.1, and the C1 conflict at the end of BUILD-SPEC.md.
-    expect(formatMonthLabel('2026-08', 'ar')).toBe('آب 2026');
-    expect(formatMonthLabel('2026-01', 'ar')).toBe('كانون الثاني 2026');
+  it('reads identically in both languages', () => {
+    // Western digits in both (16.1), and no month name left to translate.
+    expect(formatMonthLabel('2026-08', 'ar')).toBe('8/2026');
+    expect(formatMonthLabel('2026-01', 'ar')).toBe('1/2026');
+  });
+
+  it('hands back the key untouched when it is not a month', () => {
+    // The picker holds `yyyy-MM` and nothing else builds one, but a label is
+    // not the place to throw about it.
+    expect(formatMonthLabel('nonsense', 'en')).toBe('nonsense');
   });
 });
 
 describe('formatWeekLabel', () => {
   it('renders the Sunday a week is keyed by', () => {
-    expect(formatWeekLabel('2026-07-05', 'en')).toBe('5 July');
-    expect(formatWeekLabel('2026-07-05', 'ar')).toBe('5 تموز');
+    expect(formatWeekLabel('2026-07-05', 'en')).toBe('5/7');
+    expect(formatWeekLabel('2026-07-05', 'ar')).toBe('5/7');
   });
 
   it('reads the day in Amman, so a key never slips backwards', () => {
-    expect(formatWeekLabel('2026-08-02', 'en')).toBe('2 August');
+    expect(formatWeekLabel('2026-08-02', 'en')).toBe('2/8');
   });
 });
 

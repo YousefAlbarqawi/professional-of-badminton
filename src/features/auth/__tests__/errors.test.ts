@@ -7,7 +7,12 @@
  */
 import { AuthError } from '@supabase/supabase-js';
 
-import { EmailInUseError, authErrorMessageKey, toAppAuthError } from '../errors';
+import {
+  EmailInUseError,
+  InvalidCodeError,
+  authErrorMessageKey,
+  toAppAuthError,
+} from '../errors';
 
 function authError(message: string, code?: string): AuthError {
   return new AuthError(message, 400, code);
@@ -64,5 +69,23 @@ describe('EmailInUseError', () => {
     // "Sign in instead" link depends on it mapping the same way.
     expect(toAppAuthError(new EmailInUseError()).code).toBe('email_in_use');
     expect(authErrorMessageKey(new EmailInUseError())).toBe('error.emailInUse');
+  });
+});
+
+describe('a rejected confirmation code', () => {
+  it.each(['otp_expired', 'otp_disabled'])('maps GoTrue\'s %s code', (code) => {
+    const error = new AuthError('Token has expired or is invalid', 403, code);
+    expect(toAppAuthError(error).code).toBe('invalid_code');
+    expect(authErrorMessageKey(error)).toBe('error.invalidCode');
+  });
+
+  it('falls back to the wording when no code is sent', () => {
+    // Checked before the "password" fallback, which the old order would have
+    // matched first for anything mentioning a token.
+    expect(toAppAuthError(new Error('Token has expired or is invalid')).code).toBe('invalid_code');
+  });
+
+  it('is what a session-less exchange raises', () => {
+    expect(toAppAuthError(new InvalidCodeError()).code).toBe('invalid_code');
   });
 });

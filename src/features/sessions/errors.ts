@@ -23,6 +23,9 @@ export type SessionErrorCode =
   | 'venue_not_found'
   /** D62/A15: session_instances' own CHECK caps rotation_count at 10. */
   | 'rotation_count_at_maximum'
+  /** Migration 0042: the last remaining round cannot be deleted. */
+  | 'rotation_count_at_minimum'
+  | 'rotation_not_found'
   | 'network'
   | 'unknown';
 
@@ -44,6 +47,8 @@ const MESSAGE_KEYS: Record<SessionErrorCode, string> = {
   invalid_price: 'admin.error.invalidPrice',
   venue_not_found: 'admin.error.venueNotFound',
   rotation_count_at_maximum: 'admin.board.error.rotationCountAtMaximum',
+  rotation_count_at_minimum: 'admin.board.error.rotationCountAtMinimum',
+  rotation_not_found: 'admin.board.error.rotationNotFound',
   network: 'error.network',
   unknown: 'error.generic',
 };

@@ -248,26 +248,39 @@ const SessionManageContent: React.FC<{
         <View style={{ gap: theme.spacing.md }} testID="manage-players">
           {/* 15.2's header buttons. D22 lets him add at any time, including
               after the cutoff and during the session, so these are never
-              disabled by the clock — only by capacity. */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+              disabled by the clock — only by capacity.
+
+              One per row, full width, each with a plus. They were a wrapping
+              row of three, which packed two onto the first line and orphaned
+              the third, and the three labels are close enough in Arabic that
+              the coach had to read rather than aim. A stacked list of equal
+              targets is read once and hit thereafter — and the plus says what
+              all three do without depending on the label. */}
+          <View style={{ gap: theme.spacing.sm }}>
             <Button
               label={t('admin.manage.addPlayer')}
               onPress={openPlayer}
+              icon="add"
               isDisabled={isFull}
+              isFullWidth
               testID="manage-add-player"
             />
             <Button
               label={t('admin.manage.addGuest')}
               onPress={openGuest}
               variant="secondary"
+              icon="add"
               isDisabled={isFull}
+              isFullWidth
               testID="manage-add-guest"
             />
             <Button
               label={t('admin.manage.addCoach')}
               onPress={openCoach}
               variant="secondary"
+              icon="add"
               isDisabled={isFull}
+              isFullWidth
               testID="manage-add-coach"
             />
           </View>

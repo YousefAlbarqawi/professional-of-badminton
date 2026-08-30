@@ -21,6 +21,13 @@ export interface ReportTotals {
   courtCostFils: Fils;
   waterCostFils: Fils;
   coachFeeFils: Fils;
+  /**
+   * Snacks, shuttlecocks and extra court time, summed over the month.
+   * Migration 0043: these have no rate table to be derived from, so they are
+   * reported as their own part of the cost rather than folded into one of the
+   * three that do.
+   */
+  extrasFils: Fils;
   /** The part of the coach fee still owed. 12.3's accrued marker. */
   coachFeeAccruedFils: Fils;
   costFils: Fils;

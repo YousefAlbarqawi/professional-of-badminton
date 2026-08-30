@@ -69,13 +69,29 @@ export function announcementDirection(body: string, language: Locale): TextDirec
  * within a line but does not decide which edge a short line sits against, and
  * an English notice left dangling on the right of an Arabic screen is exactly
  * what 14.11 is asking to avoid.
+ *
+ * ── Why `isLayoutRTL` is a parameter ──────────────────────
+ * React Native mirrors a literal `'left'`/`'right'` on `textAlign` whenever
+ * `I18nManager.isRTL` is true, exactly as it mirrors `flexDirection: 'row'`.
+ * So a bare `textAlign: 'right'` for an Arabic message rendered physically
+ * *left* on an Arabic (RTL) screen, and an English message rendered right —
+ * the two languages arrived swapped, which is the one outcome 14.11 exists to
+ * prevent. Comparing the wanted direction against the layout direction cancels
+ * the mirroring: when they agree `'left'` already means the message's own
+ * start edge, and when they disagree `'right'` mirrors back into it.
+ *
+ * The caller passes `theme.isRTL` rather than reading `I18nManager` here, so
+ * this stays a pure function and the tests can drive both layouts.
  */
-export function directionStyle(direction: TextDirection): {
+export function directionStyle(
+  direction: TextDirection,
+  isLayoutRTL: boolean,
+): {
   writingDirection: TextDirection;
   textAlign: 'left' | 'right';
 } {
   return {
     writingDirection: direction,
-    textAlign: direction === 'rtl' ? 'right' : 'left',
+    textAlign: (direction === 'rtl') === isLayoutRTL ? 'left' : 'right',
   };
 }

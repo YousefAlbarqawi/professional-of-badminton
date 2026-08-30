@@ -277,6 +277,24 @@ export async function addRotation(sessionId: string): Promise<number> {
 }
 
 /**
+ * `add_rotation`'s inverse, added on client instruction: a night does not
+ * always run the number of rounds it was planned for. Deletes the round at
+ * `rotationIndex`, closes the gap so the remaining indexes stay contiguous
+ * from 1, and returns the new count. Migration 0042.
+ *
+ * Unlike `addRotation`, this does not want a regenerate afterwards: the rounds
+ * that remain keep the pairings the coach has already read out.
+ */
+export async function removeRotation(sessionId: string, rotationIndex: number): Promise<number> {
+  const { data, error } = await supabase.rpc('remove_rotation', {
+    p_session_id: sessionId,
+    p_rotation_index: rotationIndex,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/**
  * 9.4. Cancels the session, cancels its bookings, returns every credit, and
  * redivides the night's court cost across whatever is left.
  *

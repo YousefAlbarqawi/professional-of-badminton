@@ -27,9 +27,6 @@ const mockCliqState = jest.fn();
 const mockPick = jest.fn();
 const mockCopy = jest.fn((_value: string) => Promise.resolve());
 
-let alias = 'PROBADMINTON';
-const mockAlias = (): string => alias;
-
 const PROOF = {
   uri: 'file:///tmp/proof.jpg',
   width: 1600,
@@ -58,15 +55,13 @@ jest.mock('expo-clipboard', () => ({
   setStringAsync: (value: string) => mockCopy(value),
 }));
 
-// Section 24 question 2 is still open, so the shipped default is the
-// placeholder and `hasCliqAlias` is false. Both states are real and both are
-// asserted below, so the alias is made settable per test.
+// Section 24 question 2 is answered, so the alias and the account holder it
+// resolves to are constants rather than something the sheet has to do without.
 jest.mock('@/lib/config', () => ({
-  get config() {
-    return { cliqAlias: mockAlias(), whatsappNumber: '962792841696' };
-  },
-  get hasCliqAlias() {
-    return mockAlias() !== '';
+  config: {
+    cliqAlias: 'prof2023',
+    cliqAccountName: 'MOHAMMAD YOUSEF A. ABUDABBOUR',
+    whatsappNumber: '962792841696',
   },
   isProduction: false,
 }));
@@ -154,7 +149,6 @@ async function renderSheet(options: Setup = {}, locale: Locale = 'en'): Promise<
 
 beforeEach(() => {
   jest.clearAllMocks();
-  alias = 'PROBADMINTON';
 });
 
 describe('the three options', () => {
@@ -190,7 +184,7 @@ describe('the three options', () => {
     expect(screen.getByTestId('payment-option-credit').props.accessibilityState.disabled).toBe(
       false,
     );
-    expect(screen.getByText('3 credits left, expires 14 September 2026')).toBeTruthy();
+    expect(screen.getByText('3 credits left, expires 14/9/2026')).toBeTruthy();
   });
 
   it('never disables CliQ. 14.8', async () => {
@@ -291,9 +285,22 @@ describe('the CliQ path, 14.8 and 10.1', () => {
     await fireEvent.press(screen.getByTestId('payment-option-cliq'));
 
     expect(screen.getByTestId('cliq-step')).toBeTruthy();
-    expect(screen.getByTestId('cliq-alias')).toBeTruthy();
+    expect(screen.getByTestId('cliq-alias').children.join('')).toBe('prof2023');
     expect(screen.getByTestId('cliq-copy')).toBeTruthy();
     expect(screen.getByTestId('cliq-amount').children.join('')).toBe('6.000 JD');
+  });
+
+  it('names the account the alias resolves to', async () => {
+    // The CliQ account is a personal one, so the name a player's banking app
+    // shows him after typing the alias is not the academy's. Showing it here
+    // first is what makes that reassuring rather than alarming.
+    const screen = await renderSheet();
+
+    await fireEvent.press(screen.getByTestId('payment-option-cliq'));
+
+    expect(screen.getByTestId('cliq-account-name').children.join('')).toBe(
+      'MOHAMMAD YOUSEF A. ABUDABBOUR',
+    );
   });
 
   it('copies the alias', async () => {
@@ -303,20 +310,6 @@ describe('the CliQ path, 14.8 and 10.1', () => {
     await fireEvent.press(screen.getByTestId('cliq-copy'));
 
     expect(mockCopy).toHaveBeenCalled();
-  });
-
-  it('hides the alias and points at WhatsApp while it is unset', async () => {
-    // Section 24 question 2. A placeholder alias on a real phone would send
-    // somebody's money to nobody, so nothing is invented — but the rest of the
-    // flow still works.
-    alias = '';
-    const screen = await renderSheet();
-
-    await fireEvent.press(screen.getByTestId('payment-option-cliq'));
-
-    expect(screen.queryByTestId('cliq-alias')).toBeNull();
-    expect(screen.getByTestId('cliq-alias-missing')).toBeTruthy();
-    expect(screen.getByTestId('cliq-attach')).toBeTruthy();
   });
 
   it('keeps confirm disabled until an image is attached', async () => {

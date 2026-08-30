@@ -13,9 +13,23 @@
  *
  * Its number is the sum of the credit ledger and nothing else (6.2, D56), and
  * it taps through to the screen that shows the rows it was summed from.
+ *
+ * ── One screen, two audiences ─────────────────────────────
+ * A28 also mounts this under the staff *More* stack, so a coach can sign out
+ * and delete his account. Three sections differ between the two, on direct
+ * client instruction, and the role drives all three:
+ *
+ *   - credits and subscriptions: player only. A coach has no subscription to
+ *     spend and no ledger to read, so the card and its destination are noise
+ *     on his copy of the screen.
+ *   - *Message the coach*: player only, for the obvious reason. This is the
+ *     second exception D72 allows, alongside the welcome screen.
+ *   - notification permission: staff only. The player's copy is gone; his
+ *     phone's own settings are where a permission is granted or taken back,
+ *     and a read-only status line beside a link to them earned no room.
  */
 import React, { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -24,6 +38,7 @@ import {
   Button,
   Card,
   Dialog,
+  Icon,
   SkeletonCard,
   Text,
   WhatsAppButton,
@@ -41,6 +56,8 @@ import { useChangeLanguage } from '@/i18n/useChangeLanguage';
 import type { Locale } from '@/lib/money';
 import { useTheme } from '@/theme';
 import type { ProfileStackParamList } from '@/app/types';
+
+import { LanguageSheet } from './LanguageSheet';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'Profile'>;
 
@@ -78,6 +95,17 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const credits = useMyCredits();
   const [isConfirmingSignOut, setIsConfirmingSignOut] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isPickingLanguage, setIsPickingLanguage] = useState(false);
+
+  // Undefined while the profile loads. Treated as "not staff" for that moment,
+  // which is the safe way round: it hides a coach's notification card for a
+  // beat rather than flashing a credits card at him.
+  const isStaff = profile.data !== undefined && profile.data.role !== 'player';
+
+  // The trailing chevron follows the *physical* layout, like every other
+  // chevron in the app (see `BookingCard`): under a mirrored layout the end of
+  // a row is its left edge, so the arrow points that way.
+  const chevron = theme.isRTL ? 'chevron-back' : 'chevron-forward';
 
   const switchLanguage = useCallback(
     (locale: Locale): void => {
@@ -90,10 +118,8 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
     [changeLanguage, updateLocale],
   );
 
-  const toggleLanguage = useCallback(
-    (): void => switchLanguage(current === 'ar' ? 'en' : 'ar'),
-    [current, switchLanguage],
-  );
+  const openLanguagePicker = useCallback((): void => setIsPickingLanguage(true), []);
+  const closeLanguagePicker = useCallback((): void => setIsPickingLanguage(false), []);
 
   const confirmSignOut = useCallback((): void => {
     setIsSigningOut(true);
@@ -163,7 +189,7 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           and the screen behind it explains why (14.13's empty state). A failed
           read hides the card rather than blocking the screen: it is one line
           of a profile, not the profile. */}
-      {credits.isPending || credits.isError || credits.data === undefined ? null : (
+      {isStaff || credits.isPending || credits.isError || credits.data === undefined ? null : (
         <CreditSummaryCard
           total={credits.data.total}
           nextExpiry={credits.data.nextExpiry}
@@ -179,36 +205,57 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
 
       <Card>
         <Text variant="heading">{t('language.label')}</Text>
-        <Button
-          label={current === 'ar' ? t('language.english') : t('language.arabic')}
-          onPress={toggleLanguage}
-          variant="secondary"
-          isFullWidth
-          testID="profile-language-toggle"
-        />
+        {/* States the language that is running and opens the picker. The
+            chevron is what says it is a control rather than a read-only line —
+            the same affordance the session rows use. */}
+        <Pressable
+          onPress={openLanguagePicker}
+          accessibilityRole="button"
+          accessibilityLabel={t('language.label')}
+          accessibilityHint={t(current === 'ar' ? 'language.arabic' : 'language.english')}
+          testID="profile-language-row"
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+            minHeight: theme.minTouchTarget,
+            paddingHorizontal: theme.spacing.md,
+            borderRadius: theme.radii.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            backgroundColor: theme.colors.bgSurface,
+          }}
+        >
+          <Text variant="body" style={{ flex: 1 }} testID="profile-language-current">
+            {t(current === 'ar' ? 'language.arabic' : 'language.english')}
+          </Text>
+          <Icon name={chevron} size={18} color={theme.colors.textSecondary} />
+        </Pressable>
       </Card>
 
-      <Card>
-        <Text variant="heading">{t('profile.notifications')}</Text>
-        <Text variant="body" tone="secondary" testID="profile-notification-status">
-          {t(NOTIFICATION_LABEL_KEYS[notifications.status])}
-        </Text>
-        {notifications.status === 'denied' ? (
-          <>
-            <Text variant="small" tone="tertiary">
-              {t('profile.notificationsOffHint')}
-            </Text>
-            <Button
-              label={t('profile.openSettings')}
-              onPress={notifications.openSettings}
-              variant="secondary"
-              testID="profile-open-settings"
-            />
-          </>
-        ) : null}
-      </Card>
+      {isStaff ? (
+        <Card>
+          <Text variant="heading">{t('profile.notifications')}</Text>
+          <Text variant="body" tone="secondary" testID="profile-notification-status">
+            {t(NOTIFICATION_LABEL_KEYS[notifications.status])}
+          </Text>
+          {notifications.status === 'denied' ? (
+            <>
+              <Text variant="small" tone="tertiary">
+                {t('profile.notificationsOffHint')}
+              </Text>
+              <Button
+                label={t('profile.openSettings')}
+                onPress={notifications.openSettings}
+                variant="secondary"
+                testID="profile-open-settings"
+              />
+            </>
+          ) : null}
+        </Card>
+      ) : null}
 
-      <WhatsAppButton isFullWidth />
+      {isStaff ? null : <WhatsAppButton isFullWidth />}
 
       <Button
         label={t('auth.signOut')}
@@ -219,16 +266,28 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
       />
 
       {/* 14.12: muted destructive, at the bottom. 23.3 also requires it to be
-          within three taps of here — this is one. */}
+          within three taps of here — this is one.
+
+          `alignSelf` has to be on the button, not on the row: `Button` sets
+          its own `alignSelf` from `isFullWidth`, and 'flex-start' on a child
+          overrides 'center' on the parent's `alignItems`, which is why this
+          sat against the edge despite the wrapper. */}
       <View style={styles.deleteRow}>
         <Button
           label={t('profile.deleteAccount')}
           onPress={goToDeleteAccount}
           variant="ghost"
-          style={{ opacity: 0.7 }}
+          style={styles.deleteButton}
           testID="profile-delete-account"
         />
       </View>
+
+      <LanguageSheet
+        isVisible={isPickingLanguage}
+        current={current}
+        onSelect={switchLanguage}
+        onClose={closeLanguagePicker}
+      />
 
       <Dialog
         isVisible={isConfirmingSignOut}
@@ -248,6 +307,10 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   deleteRow: {
     alignItems: 'center',
+  },
+  deleteButton: {
+    alignSelf: 'center',
+    opacity: 0.7,
   },
 });
 

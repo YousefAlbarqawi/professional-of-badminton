@@ -6,30 +6,14 @@
  * about to happen rather than watching the app relaunch unannounced.
  * BUILD-SPEC 16.1.
  */
-import * as Updates from 'expo-updates';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, DevSettings, I18nManager } from 'react-native';
+import { Alert, I18nManager } from 'react-native';
 
 import type { Locale } from '@/lib/money';
 
 import { isRTLLocale, persistLocale } from './index';
-
-/** Reload the app so a direction change takes effect. */
-async function restart(): Promise<void> {
-  try {
-    await Updates.reloadAsync();
-  } catch {
-    // reloadAsync is unavailable in Expo Go and in some dev contexts. Fall
-    // back to the dev reload so the switch is still testable there; in a
-    // production build reloadAsync is always available.
-    if (__DEV__) {
-      DevSettings.reload();
-      return;
-    }
-    throw new Error('restart_failed');
-  }
-}
+import { restart } from './restart';
 
 export interface ChangeLanguage {
   /** Switch to `locale`, prompting for the restart when direction changes. */

@@ -7,6 +7,7 @@
  * members.
  */
 import React, { useCallback, useState } from 'react';
+import { StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -77,7 +78,14 @@ export const ForgotPasswordScreen: React.FC<Props> = ({ navigation, route }) => 
       title={t('auth.forgotTitle')}
       subtitle={t('auth.forgotBody')}
       testID="forgot-password-screen"
-      footer={<Button label={t('auth.backToSignIn')} onPress={goBackToSignIn} variant="ghost" />}
+      footer={
+        <Button
+          label={t('auth.backToSignIn')}
+          onPress={goBackToSignIn}
+          variant="ghost"
+          style={styles.footerButton}
+        />
+      }
     >
       <FormField
         control={control}
@@ -111,5 +119,11 @@ export const ForgotPasswordScreen: React.FC<Props> = ({ navigation, route }) => 
     </AuthLayout>
   );
 };
+
+const styles = StyleSheet.create({
+  footerButton: {
+    alignSelf: 'center',
+  },
+});
 
 export default ForgotPasswordScreen;

@@ -17,12 +17,28 @@
  * than disabled, so the eye skips the row instead of stopping at a dead
  * control.
  *
+ * ── Settling a row, and unsettling it ─────────────────────
+ * *Partial* and *Not paid* are the two ways a row lands somewhere other than
+ * paid in full, so they are one pair sharing a full-width line, half each.
+ * They disappear entirely in the two cases where neither can do anything:
+ *
+ *   - **Nothing due.** A free guest, a coach slot or a 0 JD custom rate has no
+ *     amount to take part of and none to record as owed. 12.2 rule 2. What
+ *     changes such a row is *Change method*, not either of these.
+ *   - **Paid in full.** Both would be undoing what was just recorded, which is
+ *     a rarer act than settling and should not sit at the same weight as one.
+ *     It gets a quiet text link instead — the same reversal, one tap, plainly
+ *     labelled, and not competing with the row below it.
+ *
+ * Both were previously rendered greyed out in these states, which put two dead
+ * controls on nearly every row of a reviewed session.
+ *
  * ── Read only ─────────────────────────────────────────────
  * After the 7 day lock every control disappears and the row renders as a
  * record. D39: "There is no unlock."
  */
 import React, { useCallback, useMemo } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Button, Chip, Text } from '@/components/primitives';
@@ -93,6 +109,11 @@ export const PaymentRow: React.FC<PaymentRowProps> = ({
     return null;
   }, [row.kind, t]);
 
+  // Nothing is due of him at all — see the note at the top of this file.
+  const isNothingDue = row.expectedFils === 0;
+  const isPaidInFull = !isNothingDue && row.paidFils === row.expectedFils;
+  const canSettle = !isNothingDue && !isPaidInFull;
+
   return (
     <View
       testID={testID}
@@ -157,21 +178,43 @@ export const PaymentRow: React.FC<PaymentRowProps> = ({
             />
           ) : null}
 
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
-            <Button
-              label={t('admin.money.partial')}
-              onPress={partial}
-              variant="secondary"
-              isDisabled={row.expectedFils === 0}
-              testID={`${testID ?? 'row'}-partial`}
-            />
-            <Button
-              label={t('admin.money.notPaid')}
+          {/* Half the line each. `flex: 1` on both children rather than a
+              percentage width, so the gap between them comes out of the line
+              instead of overflowing it, and the pair still fills the row on
+              any phone width. */}
+          {canSettle ? (
+            <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+              <Button
+                label={t('admin.money.partial')}
+                onPress={partial}
+                variant="secondary"
+                style={styles.half}
+                testID={`${testID ?? 'row'}-partial`}
+              />
+              <Button
+                label={t('admin.money.notPaid')}
+                onPress={notPaid}
+                variant="secondary"
+                isDisabled={row.paidFils === 0}
+                style={styles.half}
+                testID={`${testID ?? 'row'}-not-paid`}
+              />
+            </View>
+          ) : null}
+
+          {isPaidInFull ? (
+            <Text
+              variant="small"
+              tone="accent"
+              accessibilityRole="button"
               onPress={notPaid}
-              variant="secondary"
-              isDisabled={row.expectedFils === 0 || row.paidFils === 0}
-              testID={`${testID ?? 'row'}-not-paid`}
-            />
+              testID={`${testID ?? 'row'}-undo-paid`}
+            >
+              {t('admin.money.undoPaid')}
+            </Text>
+          ) : null}
+
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
             {canViewProof(row) ? (
               <Button
                 label={t('admin.money.viewProof')}
@@ -200,5 +243,14 @@ export const PaymentRow: React.FC<PaymentRowProps> = ({
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  half: {
+    flex: 1,
+    // `Button` sets `alignSelf` from `isFullWidth`, and 'flex-start' would
+    // shrink each half back to its label. This is the pair's own layout.
+    alignSelf: 'auto',
+  },
+});
 
 export default PaymentRow;

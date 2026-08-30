@@ -18,16 +18,62 @@ Section 23.2's checklist is at the bottom; work down it.
 
 23.3's privacy policy URL and section 24 question 8's password reset landing
 both needed a host. Decided in phase 10, recorded in full in `OPEN-ITEMS.md`:
-GitHub Pages, serving `docs/` off this repository. `docs/privacy-policy/` and
-`docs/reset-password/` are both written; what remains is standing the site up,
-which is a repository/dashboard action rather than code:
+`docs/` off this repository, deployed by Vercel, and — since the domain was
+bought — served on `professionalofbadminton.com` rather than on the generated
+`.vercel.app` name.
 
-1. Push this repository to GitHub, then Settings → Pages → branch `main`,
-   folder `/docs`.
-2. Fill `docs/reset-password/config.js` with `pob-prod`'s URL and anon key.
-3. Add `EXPO_PUBLIC_PASSWORD_RESET_URL` to the EAS environment commands below.
-4. Add the resulting `.../reset-password/` URL to `pob-prod`'s Authentication
-   → URL Configuration → Redirect URLs, in the Supabase dashboard.
+| Page           | URL                                              |
+| -------------- | ------------------------------------------------ |
+| Privacy policy | `https://professionalofbadminton.com/privacy-policy/` |
+| Password reset | `https://professionalofbadminton.com/reset-password/` |
+
+The apex is canonical and `www` redirects to it, which is the reverse of
+Vercel's own default. The apex is what goes into App Store Connect, Play
+Console and Supabase's redirect allow-list, and it is the same domain the mail
+already sends from — one name for the product rather than two.
+
+### Wiring the domain
+
+DNS is at Namecheap, on **BasicDNS**, under Advanced DNS. Both records are
+added and live:
+
+| Type    | Host  | Value                                  |
+| ------- | ----- | -------------------------------------- |
+| `A`     | `@`   | `216.198.79.1`                         |
+| `CNAME` | `www` | `d1ff9858ea0847b1.vercel-dns-017.com.` |
+
+The `A` value is Vercel's current apex IP, not the legacy `76.76.21.21` — that
+one still resolves but the dashboard recommends this one. The `CNAME` target is
+issued per project and is not guessable; it came from Vercel's Domains page.
+
+**Do not switch the nameservers to Vercel.** Namecheap's zone already carries
+everything the mail depends on — the Resend DKIM key, the `send` and `rsend`
+return-path records, the `p=none` DMARC record and the `eforward*` MX records
+for forwarding. Vercel's nameservers would serve an empty zone, and mail to and
+from `professionalofbadminton.com` would stop. Adding an `A` on `@` alongside
+the existing `MX` is fine: they are different record types and do not collide.
+
+Done, in this order:
+
+1. ~~Vercel → the project → Settings → Domains → add
+   `professionalofbadminton.com` (Production) and
+   `www.professionalofbadminton.com` (308 redirect to the apex)~~ — done.
+   Vercel pre-checks **"Redirect apex domains to www"** in that dialog; it has
+   to be unchecked, or it inverts the choice above and makes `www` canonical.
+2. ~~Add the two DNS records above at Namecheap~~ — done, and both resolve at
+   `dns1.registrar-servers.com`. Vercel issued the apex certificate on its own.
+
+Still open:
+
+3. ~~Set `EXPO_PUBLIC_PASSWORD_RESET_URL` on the EAS `production` environment
+   to the new `/reset-password/` URL~~ — done. It is inlined at build time, so
+   it reaches players only in the next production build; the old URL still
+   resolves until then.
+4. ~~Add that same URL to `pob-prod`'s Authentication → URL Configuration →
+   Redirect URLs in the Supabase dashboard~~ — done. The old Vercel and GitHub
+   Pages URLs stay on the allow-list alongside it: a reset link already sitting
+   in somebody's inbox still points at the old host, and Supabase matches
+   `redirectTo` exactly, so removing them would break links already sent.
 
 **The vector logo** (section 24 question 4) is no longer on this list — the
 client's files are in and `assets/icon.png`, `assets/splash-icon.png` and the
@@ -38,10 +84,17 @@ still waiting on is a dev build carrying the new icon, not the logo itself.
 
 ## 23.2, the release checklist
 
-- [ ] GitHub Pages enabled for this repository (`main`, `/docs`), and
+- [x] The hosted pages deployed — Vercel serving `docs/`, with
       `docs/reset-password/config.js` filled with `pob-prod`'s URL and anon key
-- [ ] The resulting `.../reset-password/` URL added to `pob-prod`'s
-      Authentication → URL Configuration → Redirect URLs
+- [x] `professionalofbadminton.com` added to the Vercel project and its two DNS
+      records added at Namecheap, per "Wiring the domain" above — nameservers
+      and all four mail records left untouched
+- [x] `https://professionalofbadminton.com/reset-password/` added to
+      `pob-prod`'s Authentication → URL Configuration → Redirect URLs, with the
+      older Vercel and GitHub Pages URLs left on the list
+- [ ] `pob-prod`'s Authentication → SMTP Settings pointed at Resend (see
+      "The production sender" below) — without it Supabase falls back to its
+      own shared SMTP, which is rate limited to a handful of mails an hour
 - [ ] Version bumped in `app.config.ts`, build number incremented
 - [ ] Migrations applied to `pob-prod` — **before** the build is submitted,
       never after. `supabase link --project-ref <prod>` then
@@ -51,13 +104,24 @@ still waiting on is a dev build carrying the new icon, not the logo itself.
 - [ ] `pob-prod` cron jobs scheduled: all five of 8.6, plus the two deployment
       invocations OPEN-ITEMS.md records (the payment proof purge and the push
       outbox drain)
-- [ ] EAS environment variables set for the `production` environment (see
-      below), including a real `EXPO_PUBLIC_SENTRY_DSN`,
-      `EXPO_PUBLIC_CLIQ_ALIAS` and `EXPO_PUBLIC_PASSWORD_RESET_URL`
+- [x] EAS environment variables set for the `production` environment (see
+      below). Eleven are set: the two Supabase values, the EAS project id, the
+      WhatsApp number, the password reset URL, the CliQ alias and account name,
+      the Sentry DSN, `SENTRY_ORG`, `SENTRY_PROJECT` and — still, deliberately —
+      `SENTRY_DISABLE_AUTO_UPLOAD`. The CliQ pair are hardcoded fallbacks in
+      `src/lib/config.ts` as well, so they are set only to allow changing the
+      alias without a new build
+- [x] `SENTRY_AUTH_TOKEN` set as a **secret**, then
+      `SENTRY_DISABLE_AUTO_UPLOAD` deleted from the production environment — in
+      that order. See "Sentry source maps" below for why the reverse fails the
+      build. Done: the token is stored secret-visibility (readable only by the
+      EAS builder, not by any UI) and the flag is gone, so the next production
+      build uploads source maps
 - [ ] `eas build --profile production --platform all`
 - [ ] Smoke test on a physical iOS device and a physical Android device,
       against prod
-- [ ] Privacy policy URL entered in App Store Connect and in Play Console
+- [ ] Privacy policy URL (`https://professionalofbadminton.com/privacy-policy/`)
+      entered in App Store Connect and in Play Console
 - [ ] Play data safety form completed from `play-data-safety.md`
 - [ ] Screenshots uploaded per `screenshots.md`
 - [ ] Age rating 4+, category Sports
@@ -67,22 +131,75 @@ still waiting on is a dev build carrying the new icon, not the logo itself.
 
 The `production` build profile reads its values from the EAS environment named
 `production` rather than from a committed `.env`, so a prod URL and key are
-never in the repository. Set each once:
+never in the repository.
+
+`eas-cli` is not a dependency of this project and is not installed globally —
+run it as `npx eas-cli@latest ...`. (`npx eas` fails: the package is `eas-cli`,
+the binary is `eas`.) Authentication is the `~/.expo/state.json` session from
+`eas login`.
+
+Set each once:
 
 ```
 eas env:create --environment production --name EXPO_PUBLIC_SUPABASE_URL      --value https://<prod-ref>.supabase.co
 eas env:create --environment production --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <prod anon key>
 eas env:create --environment production --name EXPO_PUBLIC_WHATSAPP_NUMBER   --value 962792841696
-eas env:create --environment production --name EXPO_PUBLIC_CLIQ_ALIAS        --value <the academy's CliQ alias>
-eas env:create --environment production --name EXPO_PUBLIC_SENTRY_DSN        --value <the Sentry DSN>
+eas env:create --environment production --name EXPO_PUBLIC_CLIQ_ALIAS        --value prof2023
+eas env:create --environment production --name EXPO_PUBLIC_CLIQ_ACCOUNT_NAME --value "MOHAMMAD YOUSEF A. ABUDABBOUR"
+eas env:create --environment production --name EXPO_PUBLIC_SENTRY_DSN        --value https://c7a505e6cebe3ad2eb884d328d7a5bb2@o4511987203112960.ingest.de.sentry.io/4511987208749136
 eas env:create --environment production --name EXPO_PUBLIC_EAS_PROJECT_ID    --value <the EAS project id>
-eas env:create --environment production --name EXPO_PUBLIC_PASSWORD_RESET_URL --value https://<owner>.github.io/professional-of-badminton/reset-password/
+eas env:create --environment production --name EXPO_PUBLIC_PASSWORD_RESET_URL --value https://professionalofbadminton.com/reset-password/
 ```
+
+To **change** one that already exists, `env:create` is the wrong verb and
+`env:update` is deprecated — use `env:set`, which creates or updates:
+
+```
+npx eas-cli@latest env:set --environment production \
+  --name EXPO_PUBLIC_PASSWORD_RESET_URL \
+  --value https://professionalofbadminton.com/reset-password/ \
+  --type string --visibility plaintext --non-interactive
+```
+
+Without `--non-interactive` it prompts; note that `env:list` rejects that flag
+even though `env:set` requires it.
 
 `EXPO_PUBLIC_*` values are inlined into the JavaScript bundle and are readable
 by anyone with the app, which is correct for all six: the anon key is public by
 design and Row Level Security is the boundary (section 7). The service role key
 is never among them — it exists only as an Edge Function secret (2.5).
+
+## The production sender
+
+`professionalofbadminton.com` is verified in Resend (region `eu-west-1`), so
+confirmation and password reset mail can go out as
+`noreply@professionalofbadminton.com` rather than from Resend's shared
+`onboarding@resend.dev`, which only ever delivered to the Resend account's own
+address. DKIM, the `rsend` and `send` return-path CNAMEs and a `p=none` DMARC
+record all live in Namecheap's Advanced DNS for the domain.
+
+Local Supabase reads that address from `.env`'s `SMTP_SENDER`, via
+`[auth.email.smtp]` in `supabase/config.toml`. **A hosted project does not read
+that file** — `pob-prod` has to be told the same thing by hand, in the Supabase
+dashboard under Authentication → SMTP Settings:
+
+| Field       | Value                                |
+| ----------- | ------------------------------------ |
+| Host        | `smtp.resend.com`                    |
+| Port        | `465`                                |
+| Username    | `resend`                             |
+| Password    | a Resend API key with Sending access |
+| Sender      | `noreply@professionalofbadminton.com` |
+| Sender name | `Professional of Badminton`          |
+
+Port 465 rather than 587 for the reason `supabase/config.toml` records: many
+ISPs drop outbound 587, which surfaces as GoTrue hanging and answering
+`/signup` with a 504 instead of refusing the connection.
+
+Do **not** configure a tracking subdomain in Resend. It rewrites every link
+through a redirector, and corporate mail scanners follow rewritten links
+automatically — which would spend a one-time confirmation or reset token
+before the player ever taps it.
 
 ## Sentry source maps
 
@@ -90,11 +207,33 @@ Three more variables, needed only so a crash report shows a line of TypeScript
 rather than a line of minified bundle. `expo config` warns about the first two
 until they exist; the warning is harmless and the build succeeds without them.
 
+The Sentry organization and project both exist now, created during deployment:
+org `professional-of-badminton`, project `professional-of-badminton`, platform
+React Native, EU region — so the DSN is on `ingest.de.sentry.io`, which puts
+crash data in the same jurisdiction as `pob-prod` in Frankfurt.
+
 ```
-eas env:create --environment production --name SENTRY_ORG          --value <sentry org slug>
-eas env:create --environment production --name SENTRY_PROJECT      --value <sentry project slug>
+eas env:create --environment production --name SENTRY_ORG          --value professional-of-badminton
+eas env:create --environment production --name SENTRY_PROJECT      --value professional-of-badminton
 eas env:create --environment production --name SENTRY_AUTH_TOKEN   --value <token> --type secret --visibility secret
 ```
+
+All three are set, and `SENTRY_DISABLE_AUTO_UPLOAD` has been deleted from the
+production environment, so source map upload is live.
+
+`SENTRY_AUTH_TOKEN` is the one that cannot be recovered later: Sentry shows an
+organization token's value once, on the page that creates it, and never again.
+If it ever needs replacing, create a new one at Settings > Organization Tokens
+(the only scope on offer is `org:ci`, which is exactly source map upload and
+release creation), copy the value at that moment, and revoke the old one.
+
+**Order matters, and getting it wrong fails the build rather than degrading
+it.** `SENTRY_DISABLE_AUTO_UPLOAD=true` must be present on the production
+environment whenever `SENTRY_AUTH_TOKEN` is absent. Sentry's Gradle plugin does
+not warn when `sentry-cli` has no organization to upload to — it exits non-zero
+and takes `eas build` down with it, which is what OPEN-ITEMS.md records finding
+the hard way. If the token is ever revoked without a replacement, put the flag
+back before building.
 
 `SENTRY_AUTH_TOKEN` is a build-time secret rather than a public variable: it can
 upload artefacts to the Sentry project and must never be an `EXPO_PUBLIC_*`

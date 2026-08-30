@@ -25,6 +25,14 @@
  * a row is marked paid; the cost and the value of a credit come from the
  * server, which is the only place that knows the cost snapshot (12.1) and the
  * subscription's per-visit rate (12.2 rule 1). `mergeSummary` joins them.
+ *
+ * ── The cost card ─────────────────────────────────────────
+ * The footer's cost line is one number, and 12.1's arithmetic produced it from
+ * three rate tables. `SessionCostsCard` below it is where that number is
+ * broken into its parts and, where the night did not match the rate, corrected
+ * — a coach paid more than the standard fee, no water brought, snacks bought,
+ * or the hall charged for running late. Migration 0043 and the note at the top
+ * of that file. It follows the same `gate.canEdit` as every row above it.
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
@@ -45,6 +53,7 @@ import type { Session } from '@/features/sessions/types';
 import { useTheme } from '@/theme';
 
 import { ChangeMethodSheet } from './ChangeMethodSheet';
+import { SessionCostsCard } from './SessionCostsCard';
 import { ConfirmReviewDialog } from './ConfirmReviewDialog';
 import { PartialPaymentSheet } from './PartialPaymentSheet';
 import { ProofViewer } from './ProofViewer';
@@ -290,6 +299,10 @@ export const SessionMoneyTab: React.FC<SessionMoneyTabProps> = ({
           </Text>
         ) : null}
       </Card>
+
+      {/* Under the footer, because the coach reads the totals first and only
+          then asks why the cost line says what it says. */}
+      <SessionCostsCard sessionId={session.id} canEdit={gate.canEdit} />
 
       {/* 10.2's header action, placed at the foot because it is the last thing
           he does, after every row above it. */}

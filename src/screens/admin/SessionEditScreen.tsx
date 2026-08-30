@@ -13,6 +13,13 @@
  * Every booking snapshotted `expected_fils` when it was made. Changing the
  * price rewrites nothing, and the confirmation dialog says so with the count.
  *
+ * The price field is a `NumericInput` and the comparison that drives the
+ * dialog goes through `parseFils`, for the reason `CreateSessionScreen`'s note
+ * gives at length: `isPriceChanging` runs during render on every keystroke,
+ * and `fils()` throws on a non-finite number by design (5.3), so a single
+ * letter in the field took the screen down. The start time is picked from the
+ * same 12 hour wheel as the create form, and for the same reason.
+ *
  * ── Cancelling (15.5 and 9.4) ─────────────────────────────
  * The confirmation lists exactly what will happen: how many bookings are
  * cancelled, how many credits come back, and the reminder that **no
@@ -38,6 +45,8 @@ import {
   Chip,
   Dialog,
   FormField,
+  FormNumericInput,
+  FormTimeField,
   Input,
   SegmentedControl,
   SkeletonCard,
@@ -55,7 +64,7 @@ import {
   type EditSessionForm,
 } from '@/features/sessions/schemas';
 import type { Session } from '@/features/sessions/types';
-import { fils, formatMoney, toJD } from '@/lib/money';
+import { fils, formatMoney, parseFils, toJD } from '@/lib/money';
 import { formatSessionDate, formatSessionTime, TZ } from '@/lib/time';
 import { useTheme } from '@/theme';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -139,7 +148,8 @@ const SessionEditForm: React.FC<FormProps> = ({ session, navigation }) => {
 
   const { control, handleSubmit, reset, formState } = useForm<EditSessionForm>({
     resolver: zodResolver(editSessionSchema),
-    mode: 'onBlur',
+    // Validates on blur, then on every keystroke. See CreateSessionScreen.
+    mode: 'onTouched',
     defaultValues: {
       startTime: formatInTimeZone(session.startsAt, TZ, 'HH:mm'),
       priceJD: String(toJD(session.priceFils)),
@@ -152,15 +162,46 @@ const SessionEditForm: React.FC<FormProps> = ({ session, navigation }) => {
   // function on every render, which the React Compiler cannot memoize.
   const courtCount = Number(useWatch({ control, name: 'courtCount' }));
   const priceJD = useWatch({ control, name: 'priceJD' });
+  const startTime = useWatch({ control, name: 'startTime' });
+
+  // A submit error — "another session already starts at this time", or the
+  // capacity guard below — only means anything for the exact values it was
+  // raised for. Adjusted during render rather than in an effect (React's
+  // own pattern for this — see "You Might Not Need an Effect"), so it
+  // takes hold the same frame the field changes. See the identical fix in
+  // CreateSessionScreen.
+  const errorKey = `${startTime}|${courtCount}`;
+  const [lastErrorKey, setLastErrorKey] = useState(errorKey);
+  if (errorKey !== lastErrorKey) {
+    setLastErrorKey(errorKey);
+    setSubmitError(null);
+  }
 
   const booked = session.occupancy.taken;
   const proposedCapacity = Number.isFinite(courtCount) ? courtCount * PLAYERS_PER_COURT : 0;
   // A3: block the save, tell him to remove people first, remove nobody.
   const isBelowBookings = proposedCapacity < booked;
-  const isPriceChanging = priceJD !== '' && fils(Number(priceJD)) !== session.priceFils;
+  const editedPriceFils = parseFils(priceJD);
+  const isPriceChanging = editedPriceFils !== null && editedPriceFils !== session.priceFils;
 
   const editable = isEditable(session.status);
   const cancellable = isCancellable(session.status);
+
+  // Composes 15.4/A3's capacity guard message with correct number agreement
+  // in both languages: `count` drives English's "player is"/"players are",
+  // and `courtsText`/`bookedText` carry their own noun (and, for Arabic,
+  // adjective) agreement — reusing `session.courtsValue` and
+  // `admin.error.playersBooked` rather than a bare `{{courts}}`/`{{booked}}`.
+  const buildCapacityBelowBookingsMessage = useCallback(
+    (courts: number): string =>
+      t('admin.error.capacityBelowBookings', {
+        count: booked,
+        courtsText: t('session.courtsValue', { count: courts }),
+        bookedText: t('admin.error.playersBooked', { count: booked }),
+        capacity: courts * PLAYERS_PER_COURT,
+      }),
+    [booked, t],
+  );
 
   const save = useCallback(
     (values: EditSessionForm): void => {
@@ -185,11 +226,7 @@ const SessionEditForm: React.FC<FormProps> = ({ session, navigation }) => {
             const app = toAppSessionError(error);
             setSubmitError(
               app.code === 'capacity_below_bookings'
-                ? t('admin.error.capacityBelowBookings', {
-                    booked,
-                    courts: Number(values.courtCount),
-                    capacity: Number(values.courtCount) * PLAYERS_PER_COURT,
-                  })
+                ? buildCapacityBelowBookingsMessage(Number(values.courtCount))
                 : t(app.messageKey),
             );
             setIsConfirmingPriceChange(false);
@@ -197,19 +234,13 @@ const SessionEditForm: React.FC<FormProps> = ({ session, navigation }) => {
         },
       );
     },
-    [booked, duration, reset, session.id, t, update],
+    [buildCapacityBelowBookingsMessage, duration, reset, session.id, t, update],
   );
 
   const onSubmit = useCallback(
     (values: EditSessionForm): void => {
       if (isBelowBookings) {
-        setSubmitError(
-          t('admin.error.capacityBelowBookings', {
-            booked,
-            courts: Number(values.courtCount),
-            capacity: Number(values.courtCount) * PLAYERS_PER_COURT,
-          }),
-        );
+        setSubmitError(buildCapacityBelowBookingsMessage(Number(values.courtCount)));
         return;
       }
 
@@ -222,7 +253,7 @@ const SessionEditForm: React.FC<FormProps> = ({ session, navigation }) => {
 
       save(values);
     },
-    [booked, isBelowBookings, isPriceChanging, save, t],
+    [booked, buildCapacityBelowBookingsMessage, isBelowBookings, isPriceChanging, save],
   );
 
   const confirmCancel = useCallback((): void => {
@@ -315,12 +346,11 @@ const SessionEditForm: React.FC<FormProps> = ({ session, navigation }) => {
       <Card>
         <Text variant="heading">{t('admin.edit.title')}</Text>
 
-        <FormField
+        <FormTimeField
           control={control}
           name="startTime"
           label={t('admin.edit.startTime')}
-          placeholder="19:00"
-          isLTR
+          doneLabel={t('common.done')}
           isDisabled={!editable}
           testID="edit-start-time"
         />
@@ -340,12 +370,11 @@ const SessionEditForm: React.FC<FormProps> = ({ session, navigation }) => {
           testID="edit-duration"
         />
 
-        <FormField
+        <FormNumericInput
           control={control}
           name="priceJD"
           label={t('admin.edit.price')}
-          keyboardType="decimal-pad"
-          isLTR
+          suffix={t('common.jd')}
           hint={formatMoney(session.priceFils, theme.locale)}
           isDisabled={!editable}
           testID="edit-price"
@@ -367,7 +396,10 @@ const SessionEditForm: React.FC<FormProps> = ({ session, navigation }) => {
           testID="edit-capacity-note"
         >
           {t('admin.edit.capacityNote', {
-            courts: Number.isFinite(courtCount) ? courtCount : 0,
+            count: Number.isFinite(courtCount) ? courtCount : 0,
+            courtsText: t('session.courtsValue', {
+              count: Number.isFinite(courtCount) ? courtCount : 0,
+            }),
             capacity: proposedCapacity,
             booked,
           })}

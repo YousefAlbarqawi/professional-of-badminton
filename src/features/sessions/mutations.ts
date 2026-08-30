@@ -14,7 +14,15 @@
  */
 import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query';
 
-import { addRotation, cancelSession, createOneOffSession, updateSession } from './api';
+import { lineupKeys } from '@/features/matchmaking/queries';
+
+import {
+  addRotation,
+  cancelSession,
+  createOneOffSession,
+  removeRotation,
+  updateSession,
+} from './api';
 import { sessionKeys } from './queries';
 import type { CancelSessionInput, CreateSessionInput, UpdateSessionInput } from './types';
 
@@ -51,6 +59,32 @@ export function useAddRotation(): UseMutationResult<number, Error, string> {
     mutationFn: (sessionId: string) => addRotation(sessionId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: sessionKeys.all });
+    },
+  });
+}
+
+export interface RemoveRotationInput {
+  sessionId: string;
+  /** 1-based, as the chips are numbered. */
+  rotationIndex: number;
+}
+
+/**
+ * Deletes one round. Migration 0042.
+ *
+ * Both caches are invalidated, not just the session's: the rounds above the
+ * deleted one have been renumbered, so the stored lineup on this phone is
+ * stale in a way no local edit can reproduce.
+ */
+export function useRemoveRotation(): UseMutationResult<number, Error, RemoveRotationInput> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: RemoveRotationInput) =>
+      removeRotation(input.sessionId, input.rotationIndex),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: sessionKeys.all });
+      void queryClient.invalidateQueries({ queryKey: lineupKeys.all });
     },
   });
 }

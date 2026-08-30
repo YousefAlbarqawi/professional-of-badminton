@@ -32,9 +32,8 @@ for GitHub Pages (`main` branch, `/docs` folder):
   dark theme, mirrors the app's own password rule
   (`src/features/auth/schemas.ts`'s pattern). `docs/reset-password/config.js`
   holds the two public values it needs (`pob-prod`'s URL and anon key — public
-  by design, same as every `EXPO_PUBLIC_*` value) and ships blank, the same
-  pattern as `EXPO_PUBLIC_CLIQ_ALIAS`: until it is filled, the page says so
-  plainly instead of failing silently.
+  by design, same as every `EXPO_PUBLIC_*` value): until it is filled, the page
+  says so plainly instead of failing silently.
 - `docs/privacy-policy/index.html` is the same content as
   `store/privacy-policy.en.md` and `.ar.md`, transcribed to bilingual static
   HTML with the same toggle.
@@ -60,19 +59,78 @@ Supabase's REST API expects — a server rejection, and the Arabic toggle);
 `privacy-policy/` against its own toggle. All nine and both passed. The
 `</script>` blocks were also `node --check`ed for plain syntax validity.
 
-**What is still a manual step, not code:**
+**Moved off GitHub Pages to Vercel.** Both pages are now live at
+`professional-of-badminton.vercel.app` — same content, same repo, `docs/` set
+as the Vercel project's root directory, deployed through Vercel's GitHub App
+scoped to just this one repository (not every repo on the account).
+GitHub Pages is left running too — nothing about the move required turning it
+off — but `EXPO_PUBLIC_PASSWORD_RESET_URL` and Supabase's redirect allow-list
+now name Vercel as the primary, with GitHub Pages' URL kept on the allow-list
+alongside it.
 
-1. Push this repository to GitHub and enable Pages (Settings → Pages → branch
-   `main`, folder `/docs`) — there is no remote configured yet, so this could
-   not be done from here.
-2. Fill `docs/reset-password/config.js` with `pob-prod`'s URL and anon key.
-3. Set `EXPO_PUBLIC_PASSWORD_RESET_URL` on the EAS `production` environment to
-   the resulting `.../reset-password/` URL (`store/README.md`).
-4. Add that same URL to `pob-prod`'s Authentication → URL Configuration →
-   Redirect URLs in the Supabase dashboard — `supabase/config.toml` is not
-   pushed to a hosted project's auth settings, so this is a dashboard action.
-5. Enter the `.../privacy-policy/` URL in App Store Connect and Play Console
-   (23.3, already tracked in `store/README.md`'s release checklist).
+**Then onto `professionalofbadminton.com`.** The domain was bought, so the
+pages moved off the generated `.vercel.app` name and onto the apex — the same
+domain the mail already sends from, rather than a second name for the same
+product. The apex is canonical and `www` redirects to it, which is the reverse
+of Vercel's default recommendation and chosen for the same reason: the URL is
+typed into App Store Connect, Play Console and a reset email, and the shorter
+one is the one worth having there.
+
+DNS stays at Namecheap on BasicDNS rather than moving to Vercel's nameservers,
+and that is the load-bearing part of the decision. The zone already carries
+Resend's DKIM key, the `send` and `rsend` return-path records, a `p=none`
+DMARC record and Namecheap's `eforward*` MX records; Vercel's nameservers would
+serve a zone with none of them, and mail on the domain would stop the moment
+the change propagated. An `A` record on `@` sits beside the existing `MX`
+records without collision, so the web and the mail are independent.
+
+Repository-side this is documentation rather than code — `.env.example`,
+`store/README.md`, `supabase/config.toml`'s allow-list comment and the
+`config.test.ts` fixture all named the old GitHub Pages path and now name the
+domain. The dashboard steps are in `store/README.md`'s "Wiring the domain".
+Both older URLs stay on Supabase's allow-list: `redirectTo` is matched exactly,
+so a reset link already sitting in an inbox would otherwise stop working.
+
+**What was a manual step, not code — now split between done and still open:**
+
+1. ~~Push this repository to GitHub and enable Pages~~ — done. Public at
+   `github.com/YousefAlbarqawi/professional-of-badminton`, Pages serving
+   `main` / `/docs`. Superseded by the Vercel deployment above as the
+   primary host, but still live and still on Supabase's redirect allow-list.
+2. ~~Fill `docs/reset-password/config.js` with `pob-prod`'s URL and anon
+   key~~ — done, with `pob-prod`'s real project URL and publishable key.
+   **Caught a real gap closing this item out again:** those values had been
+   sitting filled in the local working tree since an earlier pass but were
+   never committed, so both hosted pages had been serving the blank
+   "not available yet" placeholder the whole time this item said closed.
+   Committed and pushed now — verified live on both hosts, in both
+   languages.
+3. ~~Set `EXPO_PUBLIC_PASSWORD_RESET_URL` on the EAS `production`
+   environment~~ — done twice: first against the `.vercel.app` URL, then
+   reopened by the domain move and now reading
+   `https://professionalofbadminton.com/reset-password/`, verified with
+   `env:list`. The value is inlined at build time, so it only reaches players
+   in the next production build — harmless until then, since the old URL still
+   resolves.
+4. ~~Add that same URL to `pob-prod`'s Authentication → URL Configuration →
+   Redirect URLs~~ — done. All three are on the allow-list: the apex, the
+   `.vercel.app` URL and the GitHub Pages one. The older two stay rather than
+   being replaced, because `redirectTo` is matched exactly and links already
+   sent point at them.
+5. ~~Add `professionalofbadminton.com` to the Vercel project and add the `A`
+   and `www` `CNAME` records at Namecheap~~ — done. The apex is connected to
+   Production and reads Valid Configuration; `www` is a 308 to it. Namecheap
+   carries `A @ 216.198.79.1` and
+   `CNAME www d1ff9858ea0847b1.vercel-dns-017.com.`, both resolving at
+   `dns1.registrar-servers.com`, with the nameservers and all four mail records
+   untouched. Worth knowing for next time: Vercel's add-domain dialog
+   pre-checks **"Redirect apex domains to www"**, which silently inverts the
+   apex-canonical decision above unless it is unchecked.
+6. Enter the `.../privacy-policy/` URL in App Store Connect and Play Console
+   (23.3, already tracked in `store/README.md`'s release checklist). **Still
+   open.** Apple Developer Program enrollment has been submitted and is
+   processing; Play Console registration ($25, one-time) has not been
+   started.
 
 ---
 
@@ -109,7 +167,7 @@ scheduled the daily 03:20 subscription expiry, in migration 0030.
 Four of the five are now in `pg_cron`. The fifth, the daily 04:00 payment proof
 purge, cannot be a cron job at all — see the next item.
 
-### The proof purge needs a daily invocation — phase 5 → deployment
+### ~~The proof purge needs a daily invocation~~ — closed, deployment
 
 BUILD-SPEC 8.6's fifth job, A13 and A54.
 
@@ -121,17 +179,16 @@ retires the rows and returns the paths, and the edge function
 `purge-payment-proofs` hands those paths to the Storage API. Both are built and
 the SQL half is tested.
 
-**What is missing is the schedule.** The function has to be invoked once a day
-with the service role key as its bearer token. That is a deployment step, not
-code: either the platform's scheduled-functions facility, or `pg_cron` plus
-`pg_net` and the key in `supabase_vault`, which needs the project's functions
-URL and a secret this repository does not hold.
-
-**Closing it:** one scheduled invocation per environment, alongside the
-release checklist in 23.2. **Nothing is at risk before August 2027** — A13's
-retention is 365 days and the app has not launched — but a proof past its date
-will simply sit there until it is wired, and the unclaimed-upload sweep will
-not run either.
+**Closed.** The `purge-payment-proofs` edge function is deployed to
+`pob-prod` and active. The schedule itself is `pg_cron` plus `pg_net` plus the
+service role key in `supabase_vault`, exactly as this item proposed — a daily
+04:00 Amman (01:00 UTC) job named `purge-payment-proofs`, calling the function
+with the key read out of vault at call time rather than embedded in the job
+definition. **Verified, not just scheduled:** the function was invoked by
+hand outside the schedule and returned a real `200` with
+`{"ok":true,"retired":0,"removed":0,"failed":0}` — an authenticated call
+reaching the function and running the RPC underneath, not just a queued
+request.
 
 ### ~~The announcement composer behind the cancellation prompt~~ — closed in phase 8
 
@@ -227,11 +284,18 @@ screenshot thumbnail on the player's booking detail screen. 7.3 gives only staff
 card now says the screenshot was sent to the coach. See C5 in BUILD-SPEC.md for
 what overturning that would cost.
 
-**Still outstanding:** the CliQ alias itself — section 24, question 2. Until
-`EXPO_PUBLIC_CLIQ_ALIAS` is set, the sheet shows no alias and points the player
-at WhatsApp for it, and everything else in the flow works. Nothing is
-fabricated, because a placeholder alias on a real phone would send somebody's
-money to nobody.
+**The alias is now answered** — section 24, question 2: `prof2023`, held by
+`MOHAMMAD YOUSEF A. ABUDABBOUR`. Both are hardcoded fallbacks in
+`src/lib/config.ts` (the same treatment as D71's WhatsApp number, so a build
+whose EAS environment is missing the variable still shows the right alias
+rather than none), overridable by `EXPO_PUBLIC_CLIQ_ALIAS` and
+`EXPO_PUBLIC_CLIQ_ACCOUNT_NAME` without a new binary. The sheet shows the
+account holder under the alias: the academy's CliQ account is a personal one,
+so the name a player's banking app puts in front of him at the moment of
+transfer is not the academy's, and seeing it in the app first is what makes
+that reassuring rather than a reason to stop and message the coach. The
+"ask the coach on WhatsApp" fallback and its `payment.aliasUnavailable` string
+are gone with it.
 
 ### ~~The court board tab on session manage~~ — closed in phase 7
 
@@ -269,11 +333,9 @@ the boundary rather than a function, per CLAUDE.md. Every one of the four also
 fires `trg_audit_profiles` (0011).
 
 - **2, tier** — `TierPickerRow`, shared with 15.2's _Change tier_ row action
-  (closed above), one tap and written. What is _not_ built is the "change
-  history" half of this item's original wording: nothing in the app reads
-  `audit_log` back, for tier changes or anything else it records. That is a
-  new audit-log viewer, a materially different piece of work from a picker,
-  and still belongs here rather than half-built alongside the write path.
+  (closed above), one tap and written. The "change history" half of this
+  item's original wording was not built in this pass — see below for when it
+  was.
 - **3, visibility level** — a `SegmentedControl` over D14's three levels,
   reusing 15.7's own labels (`admin.players.visibility0/1/2`).
 - **4, custom rate** — two `NumericInput` fields and a Save button, local
@@ -304,6 +366,28 @@ keyed by session rather than by player — so the row is drawn inline in
 are: venue and date on one side, paid-of-expected with the payment method and
 status chips on the other.
 
+**Closed since — 2, tier's change history:** the reader `audit_log` was
+always waiting on. `fetchPlayerTierHistory`
+(`src/features/payments/api.ts`) selects the player's `audit_log` rows
+directly, the same plain-select shape as the recent-sessions read just above,
+capped and filtered client-side to the rows where `tier` itself moved —
+`trg_audit_profiles` (0011) fires on role, visibility, tier and rate writes
+alike and writes one row per `UPDATE` covering whichever changed, and there
+is no PostgREST filter that compares two `jsonb` columns against each other,
+so narrowing to tier-only changes happens after the fetch rather than in it.
+
+`audit_log` is coach-only by RLS (`audit_log_select_coach`, 7.3, D73's "an
+admin can do everything the coach can do except see the books"), so the
+section is gated on `isCoach` the same way `PlayerProfileScreen.tsx` already
+gates _Extend_ and section 8's role toggle — an admin viewing this same
+screen never issues the request and never sees the section, rather than
+issuing it and being shown nothing. Each row reads "Changed from B to B+"
+plus who and when, in the same sentence form `admin.balance.preview` already
+uses for a before/after pair, rather than an arrow glyph that would not flip
+correctly in Arabic. `TierChangeRow` (`src/components/domain/`) is the row;
+`PlayerProfileScreen.test.tsx`'s "change history" block covers the coach/admin
+split, the empty state and the error/retry state.
+
 ### ~~Pinch to zoom on the payment proof~~ — closed
 
 BUILD-SPEC 10.2: "_View proof_. CliQ rows only. Opens the screenshot full
@@ -333,9 +417,17 @@ The same pass removed `android.permission.RECORD_AUDIO`, which
 
 ## Verification debt
 
-### No screen has been viewed on a device
+### No screen has been viewed on a device — partly closed, twice
 
 Section 19.3, item 5: "The screen has been viewed in Arabic and in English."
+
+**Read this heading with two later entries.** The device verification pass
+below took a first cut at it, and the client review pass at the end of this
+file took a second — see "What the iOS Simulator actually showed, and what it
+did not" for exactly which screens have now been seen and which have not. The
+list of screens further down this entry has not been pruned to match, because
+almost all of it is still accurate and pruning it would make the debt look
+smaller than it is. What follows is still the shape of the problem.
 
 Every phase 2 screen has a test that renders it in both languages and asserts on
 the Arabic copy, and the app bundles cleanly for iOS. That proves the strings
@@ -603,7 +695,7 @@ is the part to try first, because it is the part with no test behind it.
 
 ## Raised in phase 8
 
-### Push cannot reach a real device until three deployment values exist — phase 8 → deployment
+### ~~Push cannot reach a real device until three deployment values exist~~ — Android closed, iOS open — phase 8 → deployment
 
 BUILD-SPEC section 18, 2.1 and 23.2, and assumption A69.
 
@@ -613,27 +705,99 @@ prunes what Expo says is dead. It was run against the real Expo push service
 from the local stack, and three fake tokens came back `DeviceNotRegistered` and
 were deleted, which is section 18's pruning rule proven on the ticket branch.
 
-**What is missing is credentials, not code**, and none of it can live in this
-repository:
+**What was missing was credentials, not code.** All three named here are now
+either done or precisely scoped to what's left:
 
-- **`EXPO_PUBLIC_EAS_PROJECT_ID`.** `getExpoPushTokenAsync` needs the EAS
-  project the credentials belong to. Without it `acquireDeviceToken` returns
-  null and registration is skipped quietly, so a build works in every respect
-  except being reachable. It is in `.env.example` and `app.config.ts`.
-- **APNs key and FCM credentials**, uploaded to that EAS project, plus
-  `google-services.json` for the Android build. `eas credentials` is the route.
-- **A dev build on each platform.** Push does not work in Expo Go, and phase 8
-  adds the `expo-notifications` config plugin, so a new build is required
-  anyway.
+- ~~`EXPO_PUBLIC_EAS_PROJECT_ID`~~ — done. The EAS project did not exist at
+  all until this pass (see "The EAS project did not exist" below); it does
+  now, and the variable is set on `production` pointing at it.
+- **APNs key and FCM credentials, plus `google-services.json`.** FCM is
+  done: a Firebase project was created (`professional-of-badminton`, no
+  Google Analytics — not needed for push), an Android app registered inside
+  it under `jo.professionalofbadminton.app`, `google-services.json`
+  downloaded and wired into `app.config.ts`'s `android.googleServicesFile`,
+  and the Firebase Admin SDK's FCM V1 service account key generated and
+  uploaded to EAS credentials for that same application identifier — the
+  local copy of the key was deleted immediately after upload; it lives only
+  on EAS now. **APNs is still open**, blocked on Apple Developer Program
+  enrollment finishing processing (order placed, pending).
+- **A build on each platform.** Android is done — see "First successful
+  production Android build" below; a signed `.aab` exists. iOS is blocked
+  on the same Apple Developer Program enrollment as the APNs key above.
 
-**Until then the phase's stated done-when — "a real device on each platform
-receives both notification types and lands on the right screen" — has not been
-demonstrated.** Everything either side of the two push services has been.
+**Until Apple's enrollment clears, the phase's stated done-when — "a real
+device on each platform receives both notification types and lands on the
+right screen" — has not been fully demonstrated.** Android's half of it is
+now unblocked and just needs a phone; iOS needs the enrollment first.
 
-**Closing it:** create the EAS project, upload credentials, set the variable,
-build, and send one announcement and one waitlist spot to a phone of each kind.
+**Closing what's left:** once Apple Developer Program enrollment completes,
+generate the APNs key the same way the FCM key was generated, upload it to
+EAS credentials, build iOS, and send one announcement and one waitlist spot
+to a phone of each kind.
 
-### The outbox has no scheduled drain — phase 8 → deployment
+### The EAS project did not exist — found in deployment, closed in deployment
+
+Not something BUILD-SPEC or an earlier phase called out, because there was no
+reason to suspect it: `eas.json` and the push/build items above all assumed a
+project already existed somewhere. It didn't. The account (`yousefalkhatib2`)
+had zero EAS projects before this pass.
+
+**Closed.** Created via the Expo dashboard — slug `professional-of-badminton`,
+personal account (Expo recommends an organization instead for new projects;
+not changed, since restructuring the account is a bigger decision than this
+item asked for) — and linked into `app.config.ts` via `extra.eas.projectId`.
+This is what every env var and credential item elsewhere on this page that
+mentions "EAS production" was actually being set on.
+
+### First successful production Android build — closed in deployment
+
+Three real, unrelated build failures had to be found and fixed before
+`eas build --platform android --profile production` produced a working
+`.aab`, each worth recording since none of them are visible from reading the
+source — only from watching the build fail:
+
+- **`eas.json`'s `cli.appVersionSource: "local"` doesn't work with
+  `app.config.ts`.** EAS can only auto-write an incremented build number back
+  into a static `app.json`, not a `.ts` file it would have to execute, so
+  every build failed at "autoIncrement option is not supported when using
+  app.config.js." Changed to `"remote"`, which tracks the Android version
+  code and iOS build number on EAS's own servers instead of in local config —
+  the standard fix for exactly this combination, and a clean switch here
+  since neither `ios.buildNumber` nor `android.versionCode` was set locally
+  to begin with.
+- **The committed `package-lock.json` failed `npm ci` on EAS's build image,
+  but not locally.** The error named a missing `@emnapi/core@1.11.3` /
+  `@emnapi/runtime@1.11.3` — a transitive dev dependency pulled in by
+  `eslint-config-expo`'s resolver tooling. Root cause: EAS's build image runs
+  Node 22.23.1 / npm 10.9.8, and the lockfile had been generated with a newer
+  local npm (11.6.2) that resolves that dependency differently. Installing
+  Node 22.23.1 locally via `nvm` reproduced the exact failure, and
+  regenerating `package-lock.json` with that same npm version fixed it —
+  verified both ways afterward, npm 10.9.8 and npm 11.6.2 each install clean
+  against the regenerated lockfile.
+- **Android Lint's `ExtraTranslation` check failed the release build.**
+  `assets/locales/en.json` and `.ar.json` exist for iOS's `InfoPlist.strings`
+  mechanism only (23.3, A80) — `NSPhotoLibraryUsageDescription` and
+  `NSCameraUsageDescription` are iOS permission-string keys with no Android
+  meaning at all — but Expo's `locales` config field mirrors those same keys
+  into Android's per-locale `strings.xml` regardless, where they have no
+  default-locale counterpart and trip the lint rule. A local config plugin,
+  `withDisableExtraTranslationLint` in `app.config.ts`, disables just that
+  one lint check via a `lint { disable 'ExtraTranslation' }` block injected
+  into the generated `android/app/build.gradle` — verified by running
+  `expo prebuild` locally and confirming the block lands correctly, since
+  Android Lint itself needs an Android SDK this environment does not have.
+- **Sentry's Gradle plugin failed the build outright without a configured
+  Sentry project**, not merely warned as `store/README.md`'s Sentry section
+  assumed: `sentry-cli` exited non-zero trying to upload a source map with no
+  organization to upload it to. `SENTRY_DISABLE_AUTO_UPLOAD=true`, set on EAS
+  production, is Sentry's own documented escape hatch for exactly this case —
+  `node_modules/@sentry/react-native/sentry.gradle` gates the whole upload
+  task on that variable. Crash reporting itself is unaffected; only the
+  source-map upload is skipped, and only until `SENTRY_ORG` / `SENTRY_PROJECT`
+  / `SENTRY_AUTH_TOKEN` exist and this flag is removed.
+
+### ~~The outbox has no scheduled drain~~ — closed, deployment
 
 BUILD-SPEC 8.4 step 4, and the same shape as the proof purge item above (A54).
 
@@ -643,16 +807,18 @@ after `notify_waitlist`. That covers every trigger in practice, and it is what
 makes a waitlist push arrive in seconds rather than minutes — D27 makes the
 list a race.
 
-Two things still want a periodic drain. A nudge that fails — the phone lost
+Two things still wanted a periodic drain. A nudge that fails — the phone lost
 signal between the cancellation and the invoke — leaves a job sitting until
 something else pushes. And Expo's receipts are fetched at the _start_ of the
 next invocation, by design, so on a quiet week the previous send's dead tokens
 are not pruned until the next announcement.
 
-Neither loses a notification and neither is urgent at this scale (1.4). Both
-are closed by one scheduled invocation per environment, which is the same
-deployment step the payment proof purge needs and is worth wiring at the same
-time.
+**Closed.** A `pg_cron` job named `drain-push-outbox` calls `send-push` every
+15 minutes, wired alongside the proof purge job and sharing the same
+`supabase_vault` secret. **Verified**: invoked by hand outside the schedule
+and returned a real `200` with `{"ok":true,"jobs":0,"sent":0,"pruned":0}` —
+zero jobs is correct for a freshly seeded prod database with no push activity
+yet, not a sign the call failed.
 
 ### ~~`NotYetBuiltScreen` now has no caller~~ — closed in phase 9
 
@@ -806,10 +972,10 @@ than blocked on the client.
 
 BUILD-SPEC 23.3 and assumption A83. Same item as "Where the password reset
 link should land" at the top of this file — one decision closed both. See
-there for the host (`docs/privacy-policy/`, GitHub Pages) and what is still a
-manual step.
+there for the host (`docs/privacy-policy/`, now primarily Vercel, GitHub
+Pages kept live alongside it) and what is still a manual step.
 
-### Migrations have not been applied to prod — phase 10 → deployment
+### ~~Migrations have not been applied to prod~~ — closed, deployment
 
 BUILD-SPEC 23.2: "Migrations applied to prod before the build is submitted,
 never after."
@@ -822,9 +988,14 @@ checklist, together with the two cron invocations that are also deployment
 steps (the payment proof purge and the push outbox drain) and the `eas
 env:create` lines the production profile now depends on.
 
-**Closing it:** `supabase link` then `supabase db push` against prod, plus the
-venue, cost, package and template portions of `seed.sql` — never the dev-only
-portion.
+**Closed.** `pob-prod` itself didn't exist yet either — created fresh
+(Frankfurt region, closest to Amman of the regions on offer), then `supabase
+link` and `supabase db push`: all 41 migrations applied. Followed by the
+venue, cost, package and template portions of `seed.sql` only, run by hand
+against the linked project — never the dev-only portion, which creates
+`auth.users` rows directly and must never touch prod. **Verified by count**,
+not just by a clean exit code: 2 venues, 12 templates, 5 packages, matching
+`seed.sql` exactly.
 
 ### The matchmaking performance fixture is contention-sensitive — phase 10 → watch it
 
@@ -882,3 +1053,450 @@ per-app.
 **Closing it:** a dev build on one iOS and one Android device, in both
 languages. It is now blocked behind the logo as well, since the same build is
 what the screenshots come from.
+
+---
+
+## Raised in the device verification pass
+
+The first actual device pass this item and "The court board has not been read
+at arm's length" were waiting on — an iOS Simulator dev build, driven screen by
+screen. Found in progress; each entry says what was wrong and what closed it.
+
+### Every card title, and every other non-centered `Text`, sat flush left in Arabic — closed
+
+The single highest-impact bug this pass found. Every screen that has ever been
+"viewed in Arabic" was viewed only through a unit test's snapshot of rendered
+strings (19.3 item 5's own gap, named in this file's "Verification debt"
+section above) — never through an actual RTL layout pass on a device, which is
+the only way this was ever going to be caught.
+
+**The bug.** `Text.tsx` defaulted `textAlign` to RN's `'auto'`. On iOS,
+`'auto'` resolves via the *device's own OS locale*, not the string's content
+and not the app's own chosen language — so on a device whose OS locale is
+English (unremarkable; BUILD-SPEC 16.1 deliberately starts every install in
+Arabic *regardless* of device locale, so this is not an edge case, it is the
+expected shape of a real user's phone), every Arabic heading, label, and body
+line rendered flush left instead of right, everywhere a `flex: 1` box gave it
+room to show. Centered text (button labels) was unaffected, which is exactly
+why this had stayed invisible: the screens that got even a cursory look leaned
+on centered buttons, not left/right body text.
+
+**The fix took two tries, and the second one is the one worth remembering.**
+The first attempt set the default explicitly from `theme.isRTL` (already
+correctly `I18nManager.isRTL`) — `theme.isRTL ? 'right' : 'left'` — which
+should have worked and visibly didn't, confirmed on device with a raw RN
+`<Text>` and a hardcoded `textAlign: 'right'`, no wrapper involved. The reason:
+React Native treats a *literal* `'left'`/`'right'` on `textAlign` as a logical
+value once `I18nManager.isRTL` is true, and auto-mirrors it — the same
+treatment `flexDirection: 'row'` already gets. So `'right'` under RTL renders
+physically left, cancelling the fix; swapping the hardcoded test value to
+`'left'` was what actually moved text to the right edge. The real fix is
+`Text.tsx` defaulting to a bare `'left'` unconditionally, with no `isRTL`
+branch at all — RN's own mirroring does the rest, the same way none is needed
+for the row layouts elsewhere in the app.
+
+**Confirmed fixed app-wide**, not just on `SessionCard`: the same default
+lives in one place (`Text.tsx`), so every screen using the primitive picked it
+up at once. Verified on `ScheduleScreen` and `SessionDetailScreen` directly;
+two component-level workarounds tried mid-diagnosis (`alignItems: 'flex-end'`
+on `SessionCard`'s and `BookingCard`'s title boxes) were reverted once the
+real fix landed, since they turned out to be unnecessary — the box was never
+the problem, only the text within it.
+
+No other call site in the app passes an explicit `align="left"` or
+`align="right"` to `Text`, so this default change has no other blast radius to
+check.
+
+### 15.2's Players tab and 15.2's Money tab both errored on every session, always — closed
+
+Found by actually opening a session as the coach — every session, seeded or
+freshly created, no exceptions. Both tabs showed the generic "Something went
+wrong" state on load.
+
+**The bug.** `fetchSessionRoster` (`src/features/bookings/api.ts`) and
+`fetchSessionReview` (`src/features/payments/api.ts`) both embed
+`profiles ( first_name, last_name, tier )` from `bookings` with no foreign key
+named. `bookings` carries three separate foreign keys into `profiles`
+(`player_id`, `created_by`, `cancelled_by`), so PostgREST cannot infer which
+one the embed means and refuses the whole query — `PGRST201`, "more than one
+relationship was found for 'bookings' and 'profiles'". Confirmed directly
+against the local stack's REST API, bypassing the app entirely, to rule out a
+client-side red herring before touching any code.
+
+Neither the Jest suite nor `supabase/tests` caught this: Jest mocks the
+Supabase client and never reaches real PostgREST, and this exact query shape
+apparently was never exercised by a `supabase/tests` fixture. A device pass
+driving these two tabs by hand was the only thing that was ever going to find
+it — exactly what this section's opening paragraph says about why this pass
+exists.
+
+**Closed.** Both embeds now name the foreign key explicitly —
+`profiles!bookings_player_id_fkey ( ... )` — matching the pattern
+`fetchPlayerTierHistory`'s `actor:profiles!audit_log_actor_id_fkey` and the
+court board's `pairing_rules` queries already used correctly elsewhere. Swept
+every other `profiles` embed in `src/features/*/api.ts` for the same
+unqualified pattern — no others found. Verified three ways: the raw REST call
+against the local stack now returns data instead of `PGRST201`; both tabs
+render their real content (an empty roster, and the money summary) instead of
+the error state, on device; and `npm run test:db` — 542 of 543 passing, the
+one failure a false positive from this same manual pass consuming one of
+`player001`'s seeded credits by actually booking a session with one, not a
+regression.
+
+### Arabic month names are now modern (MSA), not Levantine — closed, by client instruction
+
+BUILD-SPEC 16.1 originally specified Levantine month names (آب, أيلول, كانون
+الثاني, …) deliberately, for the Jordan audience — tested specifically in the
+Reports screen per this file's own "Verification debt" section above.
+Overturned by direct instruction during this pass: `ARABIC_MONTHS` in
+`src/lib/time.ts` now holds the modern, Gregorian-transliterated names
+(أغسطس, سبتمبر, يناير, …) instead. Every place that read as "Levantine" in a
+comment or a test name was updated to match — `src/lib/time.ts`,
+`src/lib/__tests__/time.test.ts`, `src/features/sessions/__tests__/
+announcementDraft.test.ts`, `src/screens/player/__tests__/ScheduleScreen.test.tsx`,
+`src/components/primitives/DateField.tsx`, `src/features/announcements/
+relativeTime.ts`. Digit formatting (Western numerals, C1's own subject) is
+untouched — this is a wording change only.
+
+### Tab bar icons were never wired up — closed
+
+Neither `PlayerNavigator.tsx` nor `AdminNavigator.tsx` passed a `tabBarIcon` to
+any of their eight tabs, so every tab rendered React Navigation's own
+`MissingIcon` placeholder — a triangle — in place of a real icon, on both
+sides of the app. Section 2.1 had no icon library and 17.3's component list
+never specified one, so this was a genuine gap rather than a wiring bug in
+otherwise-specified code.
+
+**Closed, by client instruction.** `@expo/vector-icons` (Ionicons) is now in
+2.1 — ships inside every Expo project already, no native linking, tints via
+`color` the same way `Text` already does. A small `Icon` primitive wraps it;
+`Button` grew an optional leading `icon` prop; `WhatsAppButton` now carries
+`logo-whatsapp`. Both navigators' eight tabs have a filled/outline icon pair
+that swaps on focus (Sessions/calendar, My bookings/bookmark,
+Announcements/megaphone, Profile/person-circle; Today, Schedule/calendar,
+Players/people, More/ellipsis-circle).
+
+### The auth screens' footer link was left-aligned instead of centered — closed
+
+`AuthLayout`'s footer `View` sets `alignItems: 'center'` deliberately, but
+`Button` hard-codes `alignSelf: 'flex-start'` whenever `isFullWidth` is not
+set — the correct default for an ordinary container (RN's own default
+`alignItems` is `stretch`, so without it a plain button would stretch full
+width), but it overrides a parent that has explicitly opted into centering.
+All four screens that use the footer slot (`SignIn`, `SignUp`,
+`ForgotPassword`, `VerifyEmail`) hit it: "No account yet?" sat centered while
+"Create account" sat flush left under it, and the same split on the other
+three screens' equivalent link.
+
+**Closed.** Each of the four footer buttons now takes an explicit
+`style={styles.footerButton}` (`alignSelf: 'center'`), scoped to just that
+call site rather than changing `Button`'s default — which stays correct for
+every other (non-footer) use across the app.
+
+### The local Supabase stack's containers do not survive a full disk — not a code bug, worth knowing
+
+Hit mid-pass: the Mac's disk filled to zero free space (unrelated to this
+project — general system state), and when Docker's containers came back after
+freeing space, `docker ps -a` showed none at all, not even stopped — the
+local stack's containers had been removed outright, though the underlying
+volume (and the seeded data in it) survived. `supabase start` re-pulled the
+images and reattached to the existing volume cleanly. Worth knowing because
+the symptom looked exactly like an app bug — sign-in returned a generic
+"Something went wrong" — until `curl`ing the auth endpoint directly showed
+`Connection refused` rather than a real 401/400 from a running server.
+
+---
+
+## Raised in the client review pass
+
+A screen-by-screen review by the client, on a device, after the device
+verification pass above. Twenty-odd items, most of them small enough to close
+in the diff and not worth a page here. What follows is the subset that either
+amends a decision already recorded in this file or in BUILD-SPEC.md, or that a
+future reader would otherwise reasonably think was a mistake.
+
+### `Text` no longer defaults to a bare `'left'` — amends the entry above
+
+"Every card title … sat flush left in Arabic" ends by saying the fix is a bare
+`'left'` "with no `isRTL` branch at all". That is right, and it is right for
+exactly one reason: it is correct *while the native layout direction and the
+app's language agree about direction*. They do not always.
+
+`I18nManager.forceRTL()` only takes effect after a reload, which is what
+`useChangeLanguage` exists to arrange — but a reload that does not happen, or
+happens without the native side picking the flag up, leaves the app running
+English strings inside an RTL layout. The client saw exactly that: in English,
+the sign-up title and every field label sat on the right.
+
+`Text` now defaults to `theme.alignStart`, which compares the two directions
+and cancels RN's mirroring out: when they agree it is `'left'` (the old
+behaviour, unchanged); when they disagree it is `'right'`, which mirrors back
+into the reading edge the *language* wants. The finding the entry above
+records — that RN mirrors literal left/right values — is unchanged and is what
+the comparison is built on.
+
+Two other places had the same latent bug and are fixed the same way:
+
+- **`Input`** never set `textAlign` at all for a non-LTR field. UIKit's
+  `NSTextAlignmentNatural` resolves against the *device's* preferred language,
+  so an Arabic install on an English phone put the caret at the left edge of
+  every field — the same shape of bug as the `'auto'` one above, one component
+  over. `isLTR` now controls only `writingDirection`: an address, a phone
+  number and a dinar amount still read left to right inside the box, and the
+  box sits at the reading edge of the language around it.
+- **`directionStyle`** (announcements, 14.11) was mirrored the wrong way and
+  was therefore *reversing* per-message direction under RTL: an Arabic notice
+  rendered flush left and an English one flush right, which is the one outcome
+  14.11 exists to prevent. It now takes the layout direction as an argument;
+  the tests drive both layouts.
+
+### Dates are numeric — amends 16.1
+
+"20 August 2026" / "20 أغسطس 2026" is now `20/8/2026`, in both languages, on
+direct client instruction. Day first, Western digits (16.1's actual rule, which
+is unchanged). `formatSessionDate` is the only place it is decided, so all
+forty-odd call sites moved together. `formatWeekLabel` follows it (`5/7`),
+because a chart axis has less room than anything else in the app.
+
+`formatMonthLabel`, the report month picker, was left spelled at first — it
+names a month rather than a date — and the client's answer was "make it all
+numeric". It reads `8/2026`: month then year, so it is the tail of
+`formatSessionDate`'s `22/8/2026` rather than a second convention on the same
+screen, and no leading zero, for the same reason a day does not carry one.
+
+With that, nothing in the app looks a month up by name, and both month-name
+arrays are gone from `src/lib/time.ts`. 16.1's spelled month has now been
+amended twice — Levantine to MSA in the device verification pass, MSA to
+digits here — and there is no third form left to pick.
+
+### 12.1's cost model now has per-session overrides — amends 12.1
+
+12.1 derives a session's cost from three effective-dated rate tables and
+nothing else. The client's account of a real month says nights depart from the
+rates in four ways: an assistant coach paid more than the standard fee, more or
+fewer packs of water than usual (sometimes none at all), snacks and shuttles
+bought on the night, and a session that ran late and was charged for the extra
+court time.
+
+Migration 0043 adds a nullable override beside each of the three rated costs,
+and a `session_extra_costs` table for the things that have no rate to override.
+`v_session_costs` is the one place the total is now assembled, and the four
+places that previously wrote the three-column sum out by hand — 0010's
+`v_session_financials`, 0027's `get_session_money_summary`, and 0036's
+`report_totals` and `report_sessions` — all read it. `report_totals` gained an
+`extras_fils` column, so its signature changed and the function was dropped and
+recreated.
+
+Effective dating is untouched and 12.1's warning still holds: an override
+belongs to one instance, so neither editing a rate nor typing an override
+rewrites a historical figure. Verified against production after the migration:
+the view agreed with the old three-column sum on all 40 existing sessions, so
+no reported number moved.
+
+`recompute_night_costs` (0017) is deliberately *not* aware of the overrides. It
+keeps dividing the night's rent across the night's sessions and writing the
+`*_share_fils` columns, which is what makes a correction survive another
+session being added to or cancelled from the same night — a single column would
+have been silently erased by the next recompute.
+
+### A start time is picked, not typed
+
+`TimeField`, `DateField`'s twin, replaces the free-text `HH:mm` field on both
+staff session forms. The coach reads a 12 hour clock everywhere else in the app
+(16.1) and was converting in his head to type into this one field, and the
+field accepted "7pm", "19" and "1900", none of which
+`sessions/schemas.ts`'s pattern allows.
+
+One test was retired rather than fixed: `SessionEditScreen`'s "refuses a
+malformed time" typed `7pm` into the field and expected the schema to reject
+it. There is no field to type into any more. It is replaced by a test that the
+wheel's value reads back as a 12 hour clock; `editSessionSchema` still rejects
+a malformed time and the schemas suite still covers that, because a form value
+can arrive from somewhere other than a keystroke.
+
+### A letter in a money field took the screen down
+
+`CreateSessionScreen`'s summary line and `SessionEditScreen`'s price-change
+check both ran `fils(Number(value))` **during render**, on every keystroke.
+`fils()` throws on a non-finite number by design (5.3, and that is the right
+behaviour at a form's edge), so one letter crashed the screen before the schema
+could report it. Both fields are now `FormNumericInput`, which normalises at
+the point of entry, and both previews go through the new `parseFils`, which
+answers `null` for a value that is not a number yet. The schemas are unchanged.
+
+`CreateSessionScreen`'s submit is deliberately *not* disabled on
+`formState.isValid`, unlike 14.2's sign up: on a seven-field form a disabled
+button says something is wrong and not what, whereas tapping it runs the
+resolver over every field and puts a message under each one that needs it.
+
+### The profile screen is now role-aware — A28
+
+A28 mounts 14.12's profile under the staff *More* stack as well. Three sections
+now differ, on client instruction: credits and subscriptions and *Message the
+coach* are the player's alone, and the notification-permission section is
+staff-only. The role comes from `useMyProfile`, which the screen already reads.
+
+`LanguageSheet.tsx` is added to `whatsappCoverage.test.tsx`'s exempt list. It is
+a two-line picker in a modal, not a screen, and the screen that opens it carries
+the affordance itself.
+
+### A rotation can be deleted — extends D62/A15
+
+0038 added `add_rotation` for A15's seventh round and had no inverse; a night
+does not always run the number of rounds it was planned for. `remove_rotation`
+(0042) deletes the round the chips are showing — *any* round, per the
+instruction, not only the last — and closes the gap so the indexes stay
+contiguous from 1.
+
+Unlike Regenerate and Add a rotation it does not rebuild the board: the rounds
+that remain keep the pairings the coach has already read out. It does not
+re-derive their `rule` from the new index either, for the same reason —
+relabelling round 3 as round 2 would describe its existing pairings wrongly.
+Regenerate is there if he wants 13.2's alternation to line up again.
+
+### Two migrations were applied through the management API, not `db push` — closed
+
+0042 and 0043 were applied to `pob-prod` directly, at the client's instruction.
+The CLI could not be used *for the remote*: `db push` and `migration list`
+hang on their database-password prompt in a non-interactive shell,
+indefinitely and with no output, though the database host itself answers on
+5432. `supabase migration up --local` needs no password and works normally —
+it is only the remote connection that is unreachable this way. The management
+API stamps a timestamp version rather than this repository's `0001..`
+numbering, so both rows were renamed to `0042` and `0043` afterwards.
+
+**Both databases had to be told, and only one was, at first.** `.env` points
+`EXPO_PUBLIC_SUPABASE_URL` at `http://127.0.0.1:54321` — the app in the
+simulator talks to the *local* stack, not to `pob-prod` — so applying only to
+the remote left every new object missing from the database actually under
+development. Deleting a rotation returned a PostgREST "function not found",
+which `sessionErrorMessageKey` has no code for and which therefore surfaced as
+`error.generic`, "حدث خطأ ما". The cost card would have failed the same way.
+Closed with `supabase migration up --local`; both databases now hold all 44.
+
+That renaming left one artefact, and closing it needed a decision rather than a
+delete. The API records a migration *after* running its query, so no migration
+can remove its own row — the renaming run tried, and its delete ran before the
+row existed. Another migration to delete it would have left another row in its
+place, and so on; through this API the steady state is always exactly one
+unclaimed row.
+
+**Closed by claiming it rather than chasing it.**
+`supabase/migrations/20260827234041_align_migration_versions.sql` is that row's
+version as its filename and the two `UPDATE`s as its body. Local files and
+remote rows now correspond one to one — 44 each, nothing pending, nothing
+remote-only — and the file is a no-op on any fresh database, since 0042 and
+0043 apply there under their own numbers and both `UPDATE`s match nothing.
+
+It is the only timestamp-versioned file in a directory of sequential ones,
+which is worth knowing when reading `ls`. Everything from here should go back
+to `0044`, `0045` and `db push`.
+
+### What the iOS Simulator actually showed, and what it did not
+
+The client review pass was the first time any of this work was run rather than
+only tested — an iPhone 17 on iOS 26.5, driven from a debug build against the
+local Supabase stack, in Arabic. Four things were established that no unit test
+could have established, and two of them were bugs the suite was green through.
+
+**Confirmed by looking:**
+
+- **The app name.** `Badminton.app` installed, `CFBundleDisplayName` read back
+  from the installed bundle as `Badminton`, with `PRODUCT_BUNDLE_IDENTIFIER`
+  still `jo.professionalofbadminton.app` and the `pob` URL scheme intact. The
+  rename had to be verified on the *installed binary*, not in `app.config.ts`,
+  because the label lives in the native project and `app.config.ts` is only a
+  source for it — which is precisely how it was missed the first time.
+- **The welcome screen.** The drifting shuttlecocks and sport icons read as
+  intended at 7–14% opacity, and the mint halo the client asked to have removed
+  is gone.
+- **The input alignment fix.** Latin text typed into 14.2's first-name field in
+  Arabic sits flush right with the caret on the right edge, which is the whole
+  of what was reported wrong.
+
+**Found by looking, and still open — see "The app runs Arabic inside a
+left-to-right layout" below.** The same screenshot that confirmed the input fix
+also showed the navigation back chevron on the left and `Input`'s password
+reveal control on the right, in Arabic. Both are positional rather than
+textual, and both are mirrored by `flexDirection: 'row'` when the layout
+direction is right to left. They were not mirrored, so it was not.
+
+**What a simulator could not be used for.** Metro's inspector WebSocket answers
+`401` on this machine, so `I18nManager.isRTL` could not be read directly and
+the direction had to be inferred from where those two controls rendered. It is
+a sound inference — nothing else moves them — but it is an inference, and a
+device with a reachable inspector would settle it in one expression.
+
+**Still unlooked-at from this pass**, and none of it is covered by the entries
+in "Verification debt" above because none of it existed then: the session cost
+card and its two sheets (10.2's money tab), deleting a round from 13.10's court
+board *through the UI* rather than through the RPC, the 50/50 pay row and its
+"back to unpaid" link, the three stacked add buttons on 15.2, the language
+sheet on 14.12, the pinned contact bar on 14.11, the 12 hour time wheel on 15.4
+and 15.6, and the numeric date format everywhere it appears. Every one of those
+has unit coverage and none has been seen.
+
+Android has not been run at all. `android/` has never been prebuilt, so its
+first generation is also the first time the shortened app name, the drawn
+shuttlecock, the native time wheel and the RTL layout will have been exercised
+on that platform.
+
+### ~~The app runs Arabic inside a left-to-right layout~~ — closed
+
+`I18nManager.isRTL` was `false` while the app language was Arabic — observed on
+the simulator, as described above. Arabic text was correct; anything positional
+was mirrored the wrong way.
+
+**Why.** `initI18n` sets the native direction flag on a cold start and does not
+reload:
+
+```ts
+I18nManager.allowRTL(shouldBeRTL);
+if (I18nManager.isRTL !== shouldBeRTL) I18nManager.forceRTL(shouldBeRTL);
+```
+
+`forceRTL` only takes effect on the *next* launch. `useChangeLanguage` handles
+that for a language the player switches to, with a restart and a sentence
+explaining it — but nothing handles the cold start where the stored native
+direction already disagrees with the resolved locale. A fresh install in Arabic
+hits it on the first launch, every time, and runs that whole session mirrored
+the wrong way.
+
+**This is the common cause of three separate reports in this pass** — English
+labels on the right, announcements reversed, and inputs starting on the wrong
+edge. All three were closed by making the *text* independent of the flag
+(`theme.alignStart`, `theme.inputAlignStart`, `directionStyle`'s new argument),
+which is worth having regardless. What remains exposed is everything
+positional: header back buttons, row order, the password reveal control, and
+the hand-flipped chevrons in `BookingCard` and `ReportsMonthPicker`.
+
+**Closed.** `alignLayoutDirection` in `src/i18n/index.ts` reloads once during
+startup when the two disagree, while the splash screen is still up so the
+player never sees it. `initI18n` now returns `{ i18n, isReloading }` and
+`App.tsx` holds the splash instead of rendering when `isReloading` is true —
+the launch being replaced must not draw, or the player sees the mirroring the
+reload exists to correct.
+
+The reload loop this entry warned about is guarded by
+`DIRECTION_RELOAD_STORAGE_KEY`, an AsyncStorage marker recording the direction
+already attempted, rather than a module-level flag the reload would reset. It
+records the *direction*, not merely "tried", so a genuine later switch still
+reloads. Every way the guard could fail to be durable — storage unreadable,
+unwritable, or the reload itself refused — gives the reload up rather than
+risking the loop: one wrongly mirrored session is a blemish, an app that never
+opens is not.
+
+The Expo Go / `__DEV__` reload fallback was lifted out of `useChangeLanguage`
+into `src/i18n/restart.ts`, so the startup path and the language switch share
+one implementation instead of two copies drifting apart.
+
+Held by ten cases in `src/i18n/__tests__/layoutDirection.test.ts`: the fresh
+Arabic install that motivated the entry, the two directions that need no
+action, the guard being cleared once the direction takes, the second launch
+that must *not* reload again, the opposite-direction switch that still must,
+and each of the four failure paths starting the app rather than hanging on the
+splash.
+
+**Not verified on a device.** The repair only shows on a genuinely fresh
+install, which is exactly the case a simulator pass driving screen by screen
+never re-enters. Delete the app and launch once, in Arabic, to see it.

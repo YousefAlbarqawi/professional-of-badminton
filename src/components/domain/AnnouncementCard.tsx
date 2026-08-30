@@ -109,7 +109,7 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
       <Text
         variant="body"
         {...(numberOfLines === undefined ? {} : { numberOfLines })}
-        style={directionStyle(direction)}
+        style={directionStyle(direction, theme.isRTL)}
         testID={testID === undefined ? undefined : `${testID}-body`}
       >
         {announcement.body}

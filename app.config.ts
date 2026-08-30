@@ -1,4 +1,5 @@
 import type { ExpoConfig } from 'expo/config';
+import { withAppBuildGradle } from 'expo/config-plugins';
 
 /**
  * Expo configuration. Every environment-specific value comes from `.env`
@@ -6,7 +7,13 @@ import type { ExpoConfig } from 'expo/config';
  * only as an Edge Function secret. BUILD-SPEC section 2.5.
  */
 const config: ExpoConfig = {
-  name: 'Professional of Badminton',
+  // What the phone's home screen and app switcher show under the icon. Kept
+  // short on direct client instruction: "Professional of Badminton" is
+  // truncated to an ellipsis on every launcher that matters, so the label is
+  // the one word a player looks for. The academy's full name still appears on
+  // the welcome screen, in the stores, and in `slug` — which is the EAS
+  // project's identity and must not change.
+  name: 'Badminton',
   slug: 'professional-of-badminton',
   version: '1.0.0',
   orientation: 'portrait',
@@ -41,6 +48,11 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'jo.professionalofbadminton.app',
+    // Firebase's client-side config, matched to this package name. Not a
+    // secret — the FCM server credential that actually authorizes sending is
+    // a separate service account key, uploaded to EAS credentials, never
+    // committed here. Section 18 and 2.1.
+    googleServicesFile: './google-services.json',
     adaptiveIcon: {
       backgroundColor: '#111111',
       foregroundImage: './assets/android-icon-foreground.png',
@@ -102,13 +114,35 @@ const config: ExpoConfig = {
     environment: process.env.EXPO_PUBLIC_ENVIRONMENT ?? 'development',
     whatsappNumber: process.env.EXPO_PUBLIC_WHATSAPP_NUMBER ?? '962792841696',
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN ?? '',
-    cliqAlias: process.env.EXPO_PUBLIC_CLIQ_ALIAS ?? '',
+    cliqAlias: process.env.EXPO_PUBLIC_CLIQ_ALIAS ?? 'prof2023',
+    cliqAccountName: process.env.EXPO_PUBLIC_CLIQ_ACCOUNT_NAME ?? 'MOHAMMAD YOUSEF A. ABUDABBOUR',
     // Which EAS project the push credentials belong to. Section 18 and 2.1.
     easProjectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? '',
     // Section 24 question 8: where the Supabase recovery link lands. Empty
     // until the GitHub Pages site exists.
     passwordResetUrl: process.env.EXPO_PUBLIC_PASSWORD_RESET_URL ?? '',
+    eas: {
+      projectId: '0fad5d1d-0baf-4ac3-a4f1-62256ce4a614',
+    },
   },
 };
 
-export default config;
+// `locales` above exists only for iOS's InfoPlist.strings mechanism (23.3,
+// A80) — Expo also mirrors those same keys into Android's per-locale
+// strings.xml, where NSPhotoLibraryUsageDescription/NSCameraUsageDescription
+// have no default-locale counterpart (Android never reads them), which trips
+// Android Lint's ExtraTranslation check and fails the release build. This
+// disables that one check rather than lint wholesale.
+function withDisableExtraTranslationLint(expoConfig: ExpoConfig): ExpoConfig {
+  return withAppBuildGradle(expoConfig, (modConfig) => {
+    if (modConfig.modResults.language === 'groovy') {
+      modConfig.modResults.contents = modConfig.modResults.contents.replace(
+        /^android \{/m,
+        "android {\n    lint {\n        disable 'ExtraTranslation'\n    }\n",
+      );
+    }
+    return modConfig;
+  });
+}
+
+export default withDisableExtraTranslationLint(config);

@@ -271,7 +271,7 @@ export async function fetchSessionRoster(sessionId: string): Promise<RosterEntry
     .select(
       `id, attendee_kind, player_id, guest_name, guest_tier, tier_snapshot,
        payment_method, expected_fils, is_coach_slot, booked_at,
-       profiles ( first_name, last_name, tier )`,
+       profiles!bookings_player_id_fkey ( first_name, last_name, tier )`,
     )
     .eq('session_id', sessionId)
     .eq('status', 'confirmed')

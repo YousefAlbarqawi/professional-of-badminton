@@ -43,7 +43,7 @@ export const Card: React.FC<CardProps> = ({
       borderWidth: 1,
       borderColor: theme.colors.border,
       padding: theme.spacing.md,
-      gap: theme.spacing.sm,
+      gap: theme.spacing.md,
     }),
     [isElevated, theme],
   );

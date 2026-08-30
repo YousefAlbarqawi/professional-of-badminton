@@ -55,6 +55,42 @@ jest.mock('@/features/payments/mutations', () => ({
   }),
 }));
 
+/**
+ * Migration 0043's cost card sits under the footer and reads its own query.
+ * It is mocked here rather than left to the stubbed Supabase client, so that
+ * this suite stays about 10.2's rows and totals; the card's own behaviour is
+ * covered in `SessionCostsCard.test.tsx`.
+ */
+const mockCosts = jest.fn();
+
+jest.mock('@/features/sessions/costQueries', () => ({
+  useSessionCosts: () => mockCosts(),
+  useSetSessionCosts: () => ({ mutate: jest.fn(), isPending: false, isError: false, error: null }),
+  useAddSessionExtraCost: () => ({
+    mutate: jest.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
+  useDeleteSessionExtraCost: () => ({ mutate: jest.fn(), isPending: false }),
+}));
+
+const COSTS = {
+  sessionId: 's1',
+  courtCostDefaultFils: 23750 as Fils,
+  coachFeeDefaultFils: 10000 as Fils,
+  waterCostDefaultFils: 2000 as Fils,
+  courtCostOverrideFils: null,
+  coachFeeOverrideFils: null,
+  waterCostOverrideFils: null,
+  courtCostFils: 23750 as Fils,
+  coachFeeFils: 10000 as Fils,
+  waterCostFils: 2000 as Fils,
+  extrasFils: 0 as Fils,
+  costFils: 35750 as Fils,
+  extras: [],
+};
+
 const ENDED = addHours(new Date(), -2);
 
 function session(overrides: Partial<Session> = {}): Session {
@@ -145,6 +181,13 @@ async function renderTab(options: Setup = {}, locale: Locale = 'en'): Promise<Re
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockCosts.mockReturnValue({
+    isPending: false,
+    isError: false,
+    isFetching: false,
+    data: COSTS,
+    refetch: jest.fn(),
+  });
 });
 
 describe('the states 19.3 requires', () => {
@@ -192,14 +235,42 @@ describe('a row, 10.2', () => {
     });
   });
 
-  it('marks a row not paid, which the server turns into a balance entry', async () => {
+  it('marks a part-paid row not paid, which the server turns into a balance entry', async () => {
     const screen = await renderTab({
-      rows: [row({ paidFils: 6000 as Fils, paymentStatus: 'paid' })],
+      rows: [row({ paidFils: 2000 as Fils, paymentStatus: 'partial' })],
     });
 
     await fireEvent.press(screen.getByTestId('money-row-b1-not-paid'));
 
     expect(mockRecord.mock.calls[0]?.[0]).toMatchObject({ bookingId: 'b1', paidFils: 0 });
+  });
+
+  it('replaces the pair with a quiet link once a row is paid in full', async () => {
+    // Client instruction. Both buttons would be undoing what was just
+    // recorded, which is rarer than settling and should not sit at the same
+    // weight — so the row gets one text link back to unpaid instead.
+    const screen = await renderTab({
+      rows: [row({ paidFils: 6000 as Fils, paymentStatus: 'paid' })],
+    });
+
+    expect(screen.queryByTestId('money-row-b1-partial')).toBeNull();
+    expect(screen.queryByTestId('money-row-b1-not-paid')).toBeNull();
+
+    await fireEvent.press(screen.getByTestId('money-row-b1-undo-paid'));
+
+    expect(mockRecord.mock.calls[0]?.[0]).toMatchObject({ bookingId: 'b1', paidFils: 0 });
+  });
+
+  it('offers neither on a row that expects nothing', async () => {
+    // A free guest, a coach slot or a 0 JD custom rate has no amount to take
+    // part of and none to record as owed. 12.2 rule 2.
+    const screen = await renderTab({
+      rows: [row({ paymentMethod: 'free', expectedFils: 0 as Fils, paymentStatus: 'waived' })],
+    });
+
+    expect(screen.queryByTestId('money-row-b1-partial')).toBeNull();
+    expect(screen.queryByTestId('money-row-b1-not-paid')).toBeNull();
+    expect(screen.queryByTestId('money-row-b1-undo-paid')).toBeNull();
   });
 
   it('offers no Mark paid on a row that expects nothing', async () => {

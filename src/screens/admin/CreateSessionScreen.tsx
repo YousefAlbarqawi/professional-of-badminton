@@ -15,6 +15,21 @@
  *
  * The date is picked, not typed — A35's amendment to 2.1, phase 10, once the
  * client approved the dependency. See OPEN-ITEMS.md.
+ *
+ * The start time is picked too, from the same native module, and reads back as
+ * "7:00 PM" / "7:00 مساءً" rather than as 24 hour `HH:mm` — see `TimeField`
+ * for why. The coach reads a 12 hour clock everywhere else in the app (16.1)
+ * and was converting in his head to type into this one field.
+ *
+ * ── A form that cannot be crashed ─────────────────────────
+ * The summary line under the fields prices the session as it is typed, which
+ * means `fils()` ran on a half-typed value on every keystroke — and `fils()`
+ * throws on a non-finite number by design (5.3). A single letter in the price
+ * field took the whole screen down before the schema could report it. Two
+ * things fixed that, and both are wanted: the money field is a `NumericInput`,
+ * so only digits and one separator reach the form at all, and the preview goes
+ * through `parseFils`, which answers `null` for a value that is not a number
+ * yet instead of throwing. The schema is unchanged and still has the last word.
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
@@ -28,6 +43,8 @@ import {
   Card,
   FormDateField,
   FormField,
+  FormNumericInput,
+  FormTimeField,
   SegmentedControl,
   SkeletonCard,
   Text,
@@ -44,8 +61,8 @@ import {
   type DurationMinutes,
 } from '@/features/sessions/schemas';
 import type { VenueOption } from '@/features/sessions/types';
-import { fils, formatMoney } from '@/lib/money';
-import { ammanDayKey, nowInAmman } from '@/lib/time';
+import { fils, formatMoney, parseFils } from '@/lib/money';
+import { ammanDayKey, ammanDayStart, formatClockTime, formatSessionDate, nowInAmman } from '@/lib/time';
 import { useTheme } from '@/theme';
 import type { AdminScheduleStackParamList } from '@/app/types';
 
@@ -54,6 +71,10 @@ type Prefill = NonNullable<Props['route']['params']>;
 
 const PLAYERS_PER_COURT = 4;
 const DEFAULT_START_TIME = '19:00';
+
+/** The two wire formats the pickers write, for the summary line below. */
+const DAY_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const CLOCK_PATTERN = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
 const DEFAULT_PRICE_JD = '6';
 const DEFAULT_DURATION: DurationMinutes = 90;
 
@@ -121,7 +142,10 @@ const CreateSessionFormView: React.FC<FormViewProps> = ({ venues, prefill, onCre
 
   const { control, handleSubmit, setValue } = useForm<CreateSessionForm>({
     resolver: zodResolver(createSessionSchema),
-    mode: 'onBlur',
+    // Validates once a field has been left, then on every keystroke — the same
+    // mode the sign-up form uses (14.2). `onBlur` alone meant a coach who
+    // corrected a rejected field had to leave it again to be told he had.
+    mode: 'onTouched',
     defaultValues: {
       venueId: initialVenue?.id ?? '',
       sessionDate: prefill.sessionDate ?? ammanDayKey(nowInAmman()),
@@ -165,6 +189,20 @@ const CreateSessionFormView: React.FC<FormViewProps> = ({ venues, prefill, onCre
   const startTime = useWatch({ control, name: 'startTime' });
   const sessionDate = useWatch({ control, name: 'sessionDate' });
 
+  // A server error like "another session already starts at this time in
+  // this venue" only means anything for the exact venue/date/time it was
+  // raised for. Without this, changing any of the three away from the
+  // conflict still shows the same message, which reads as if the new
+  // combination were the problem too. Adjusted during render (React's own
+  // pattern for this — see "You Might Not Need an Effect") rather than in
+  // an effect, so it takes hold the same frame the field changes.
+  const conflictKey = `${venueId}|${sessionDate}|${startTime}`;
+  const [lastConflictKey, setLastConflictKey] = useState(conflictKey);
+  if (conflictKey !== lastConflictKey) {
+    setLastConflictKey(conflictKey);
+    setSubmitError(null);
+  }
+
   const onSubmit = useCallback(
     (values: CreateSessionForm): void => {
       setSubmitError(null);
@@ -188,7 +226,20 @@ const CreateSessionFormView: React.FC<FormViewProps> = ({ venues, prefill, onCre
   );
 
   const capacity = Number.isFinite(courtCount) ? courtCount * PLAYERS_PER_COURT : 0;
-  const priceValue = priceJD === '' ? 0 : Number(priceJD);
+  // Null while the field is empty or mid-typing. Rendered as 0 rather than as
+  // a gap, because the summary is a sentence and a hole in it reads worse than
+  // a price that has not been set yet.
+  const priceFils = parseFils(priceJD);
+
+  // Both fall back to the raw field value: it is only ever not parseable if
+  // something put a value in the form that neither picker can produce, and a
+  // summary is not the place to throw about it. The schema reports it.
+  const summaryDate = DAY_KEY_PATTERN.test(sessionDate)
+    ? formatSessionDate(ammanDayStart(sessionDate), theme.locale)
+    : sessionDate;
+  const summaryTime = CLOCK_PATTERN.test(startTime)
+    ? formatClockTime(startTime, theme.locale)
+    : startTime;
 
   return (
     <ScrollView
@@ -222,12 +273,11 @@ const CreateSessionFormView: React.FC<FormViewProps> = ({ venues, prefill, onCre
           testID="create-date"
         />
 
-        <FormField
+        <FormTimeField
           control={control}
           name="startTime"
           label={t('admin.edit.startTime')}
-          placeholder={DEFAULT_START_TIME}
-          isLTR
+          doneLabel={t('common.done')}
           testID="create-start-time"
         />
 
@@ -242,12 +292,11 @@ const CreateSessionFormView: React.FC<FormViewProps> = ({ venues, prefill, onCre
           testID="create-duration"
         />
 
-        <FormField
+        <FormNumericInput
           control={control}
           name="priceJD"
           label={t('admin.edit.price')}
-          keyboardType="decimal-pad"
-          isLTR
+          suffix={t('common.jd')}
           testID="create-price"
         />
 
@@ -275,10 +324,14 @@ const CreateSessionFormView: React.FC<FormViewProps> = ({ venues, prefill, onCre
         <Text variant="small" tone="secondary" testID="create-summary">
           {t('admin.create.summary', {
             venue: selectedVenue?.name ?? '',
-            date: sessionDate,
-            time: startTime,
+            // The summary reads back what the two pickers show, not the wire
+            // format underneath them — a coach checking his own entry should
+            // not have to recognise `2026-08-22` and `19:00` as the date and
+            // time he just picked. 16.1.
+            date: summaryDate,
+            time: summaryTime,
             capacity,
-            price: formatMoney(fils(priceValue), theme.locale),
+            price: formatMoney(priceFils ?? fils(0), theme.locale),
           })}
         </Text>
 
@@ -292,6 +345,11 @@ const CreateSessionFormView: React.FC<FormViewProps> = ({ venues, prefill, onCre
           label={t('admin.create.submit')}
           onPress={handleSubmit(onSubmit)}
           isLoading={create.isPending}
+          // Deliberately not disabled on `formState.isValid`, unlike 14.2's
+          // sign up. A disabled button is a dead end on a seven-field form:
+          // it says something is wrong and not what. Tapping it runs the
+          // resolver over every field, which puts a message under each one
+          // that needs it and submits nothing — the report the coach came for.
           isFullWidth
           testID="create-submit"
         />

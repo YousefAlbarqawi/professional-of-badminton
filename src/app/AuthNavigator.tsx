@@ -7,6 +7,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { NativeStackHeaderProps } from '@react-navigation/native-stack';
 
 import { PendingVerificationProvider } from '@/features/auth/pendingVerification';
 import { ForgotPasswordScreen } from '@/screens/auth/ForgotPasswordScreen';
@@ -16,6 +17,7 @@ import { VerifyEmailScreen } from '@/screens/auth/VerifyEmailScreen';
 import { WelcomeScreen } from '@/screens/auth/WelcomeScreen';
 import { colors } from '@/theme';
 
+import { ScreenHeader } from './ScreenHeader';
 import type { AuthStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -34,6 +36,9 @@ export const AuthNavigator: React.FC = () => {
           headerShadowVisible: false,
           contentStyle: { backgroundColor: colors.bg },
           headerBackButtonDisplayMode: 'minimal',
+          // The whole bar is drawn by React Native, not UIKit. See
+          // ScreenHeader.
+          header: (props: NativeStackHeaderProps) => <ScreenHeader {...props} />,
         }}
       >
         <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
@@ -55,6 +60,9 @@ export const AuthNavigator: React.FC = () => {
             // Going "back" from here would land on the sign-up form for an
             // account that already exists. The screen offers its own way out.
             headerBackVisible: false,
+            // Undoes the stack-wide replacement, which would otherwise put
+            // the control back on the one screen that must not have it.
+            header: (props: NativeStackHeaderProps) => <ScreenHeader {...props} hideBack />,
             gestureEnabled: false,
           }}
         />

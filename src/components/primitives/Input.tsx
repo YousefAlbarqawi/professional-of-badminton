@@ -5,6 +5,28 @@
  * An email address or a phone number is forced left to right whatever the app
  * language is, because a `+962` reads as nonsense when the paragraph around it
  * runs the other way.
+ *
+ * ── Where the caret starts ────────────────────────────────
+ * The field's own `textAlign` is always set, never left at RN's default.
+ * UIKit's `NSTextAlignmentNatural` — which is what an unset `textAlign`
+ * becomes — resolves against the *device's* preferred language, not the app's
+ * chosen one, so an Arabic install on an English phone put the caret at the
+ * left edge of every field.
+ *
+ * The value is `theme.inputAlignStart` and **not** `theme.alignStart`, and the
+ * difference is not cosmetic. React Native mirrors a literal `'left'`/`'right'`
+ * on a `<Text>` under an RTL layout; it does not do the same for a
+ * `<TextInput>`, which takes the value physically. `alignStart` compensates
+ * for that mirroring, so handing it to a field applies the correction twice
+ * and lands on the wrong edge — Arabic typing from the left and English from
+ * the right, both wrong at once, which is exactly what was reported. See the
+ * note at the top of `theme/ThemeProvider.tsx`.
+ *
+ * `isLTR` changes only `writingDirection`, not the alignment. An address, a
+ * phone number and a dinar amount all still read left to right inside their
+ * box — that is what 16.2 asks for — but the box itself sits at the reading
+ * edge of the language around it, so an Arabic form does not have one field
+ * flush left among five flush right.
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import {
@@ -38,8 +60,10 @@ export interface InputProps extends Omit<
   /** Already translated labels for that control. Required when `isSecure`. */
   revealLabel?: string;
   hideLabel?: string;
-  /** Forces left-to-right content: emails, phone numbers. 16.2. */
+  /** Forces left-to-right *content*: emails, phone numbers, amounts. 16.2. */
   isLTR?: boolean;
+  /** Overrides the reading-start alignment. For a centred code field. */
+  textAlign?: TextInputProps['textAlign'];
   isDisabled?: boolean;
   containerStyle?: StyleProp<ViewStyle>;
   testID?: string;
@@ -56,6 +80,7 @@ export const Input: React.FC<InputProps> = ({
   revealLabel,
   hideLabel,
   isLTR = false,
+  textAlign,
   isDisabled = false,
   containerStyle,
   testID,
@@ -138,8 +163,10 @@ export const Input: React.FC<InputProps> = ({
               lineHeight: theme.typography.body.lineHeight,
               fontFamily: theme.fontFamily('400'),
               paddingVertical: theme.spacing.sm + theme.spacing.xs,
-              // 16.2: an address or a number is LTR wherever it is shown.
-              textAlign: isLTR ? 'left' : undefined,
+              // Always explicit, and physical — see the note at the top of
+              // this file for why this is not `theme.alignStart`.
+              textAlign: textAlign ?? theme.inputAlignStart,
+              // 16.2: an address or a number reads LTR wherever it is shown.
               writingDirection: isLTR ? 'ltr' : undefined,
             },
           ]}

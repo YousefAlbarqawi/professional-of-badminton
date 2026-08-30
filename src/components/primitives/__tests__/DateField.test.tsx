@@ -14,6 +14,7 @@ import { Platform } from 'react-native';
 import { renderWithProviders } from '@/test/renderWithProviders';
 
 import { DateField } from '../DateField';
+import { isolateLTR } from '../Text';
 
 const onChange = jest.fn();
 
@@ -46,7 +47,9 @@ describe('closed', () => {
   it('shows the current value, formatted, and no wheel', async () => {
     const screen = await renderWithProviders(<Controlled initial="2026-08-24" />);
 
-    expect(screen.getByTestId('date-field-value').children.join('')).toBe('24 August 2026');
+    expect(screen.getByTestId('date-field-value').children.join('')).toBe(
+      isolateLTR('24/8/2026'),
+    );
     expect(screen.queryByTestId('date-field-native')).toBeNull();
   });
 });
@@ -62,7 +65,9 @@ describe('iOS, the default test platform', () => {
 
     // Committed without pressing Done — the spinner has no separate confirm.
     expect(onChange).toHaveBeenCalledWith('2026-09-01');
-    expect(screen.getByTestId('date-field-value').children.join('')).toBe('1 September 2026');
+    expect(screen.getByTestId('date-field-value').children.join('')).toBe(
+      isolateLTR('1/9/2026'),
+    );
   });
 
   it('closes the wheel on Done without changing the value again', async () => {

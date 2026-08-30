@@ -23,6 +23,17 @@
  * stops rebuilding itself. Instead it counts what has changed since and offers
  * the Regenerate button, which asks first because it destroys his work.
  *
+ * ── Removing a rotation ────────────────────────────────────
+ * The mirror of adding one, on client instruction: a night does not always run
+ * the number of rounds it was planned for. *Delete this round* acts on the
+ * round the chips are currently showing, so any round can go, not only the
+ * last — and the coach picks it the same way he reads it.
+ *
+ * Unlike Regenerate and Add a rotation it does **not** rebuild the board. The
+ * rounds that remain keep the pairings he has already read out; only their
+ * numbers shift down to close the gap (`remove_rotation`, migration 0042). It
+ * still confirms first, because the deleted round's pairings are gone.
+ *
  * ── Adding a seventh rotation ──────────────────────────────
  * D62/A15: a 2.5 hour session runs six rotations, "and a seventh rotation, if
  * played, uses rule 1" — `ruleForRotation` already returns rule 1 for any odd
@@ -55,7 +66,7 @@ import { buildLineupInput, toBoardPlayers } from '@/features/matchmaking/lineupI
 import { useSaveLineup, useSetCourtLock, useSwapPlayers } from '@/features/matchmaking/mutations';
 import { useLineup, usePairingRules } from '@/features/matchmaking/queries';
 import { sessionErrorMessageKey } from '@/features/sessions/errors';
-import { useAddRotation } from '@/features/sessions/mutations';
+import { useAddRotation, useRemoveRotation } from '@/features/sessions/mutations';
 import type { Session } from '@/features/sessions/types';
 import { hapticSwap } from '@/lib/haptics';
 import { useTheme } from '@/theme';
@@ -72,6 +83,9 @@ import { PairingRulesSheet } from './PairingRulesSheet';
 
 /** session_instances' own CHECK. */
 const MAX_ROTATIONS = 10;
+
+/** The same CHECK's floor. A session with no rounds is not a session. */
+const MIN_ROTATIONS = 1;
 
 export interface SessionCourtBoardTabProps {
   session: Session;
@@ -104,12 +118,14 @@ export const SessionCourtBoardTab: React.FC<SessionCourtBoardTabProps> = ({
   const swapPlayers = useSwapPlayers();
   const setCourtLock = useSetCourtLock();
   const addRotation = useAddRotation();
+  const removeRotation = useRemoveRotation();
 
   const [rotationIndex, setRotationIndex] = useState(1);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [toast, setToast] = useState<BoardToast | null>(null);
   const [isRegenerateOpen, setRegenerateOpen] = useState(false);
   const [isAddRotationOpen, setAddRotationOpen] = useState(false);
+  const [isRemoveRotationOpen, setRemoveRotationOpen] = useState(false);
   const [isRulesOpen, setRulesOpen] = useState(false);
 
   const tileNodes = useRef(new Map<string, View>()).current;
@@ -282,6 +298,8 @@ export const SessionCourtBoardTab: React.FC<SessionCourtBoardTabProps> = ({
   const closeRegenerate = useCallback((): void => setRegenerateOpen(false), []);
   const openAddRotation = useCallback((): void => setAddRotationOpen(true), []);
   const closeAddRotation = useCallback((): void => setAddRotationOpen(false), []);
+  const openRemoveRotation = useCallback((): void => setRemoveRotationOpen(true), []);
+  const closeRemoveRotation = useCallback((): void => setRemoveRotationOpen(false), []);
 
   const confirmAddRotation = useCallback((): void => {
     setAddRotationOpen(false);
@@ -298,6 +316,26 @@ export const SessionCourtBoardTab: React.FC<SessionCourtBoardTabProps> = ({
         setToast({ message: t(sessionErrorMessageKey(error)), tone: 'danger', undo: null }),
     });
   }, [addRotation, buildInput, saveLineup, session.id, t]);
+  const confirmRemoveRotation = useCallback((): void => {
+    setRemoveRotationOpen(false);
+    removeRotation.mutate(
+      { sessionId: session.id, rotationIndex: rotationIndex },
+      {
+        onSuccess: (newRotationCount) => {
+          setSelectedBookingId(null);
+          // The rounds above the deleted one have shifted down, so the chip
+          // that was selected now points at a different round — or at none at
+          // all, if the last one went. Landing on the round that took the
+          // deleted one's place is what a coach working down the night
+          // expects; landing past the end would show an empty board.
+          setRotationIndex((current) => Math.min(current, newRotationCount));
+        },
+        onError: (error) =>
+          setToast({ message: t(sessionErrorMessageKey(error)), tone: 'danger', undo: null }),
+      },
+    );
+  }, [removeRotation, rotationIndex, session.id, t]);
+
   const retry = useCallback((): void => {
     void roster.refetch();
     void lineup.refetch();
@@ -452,6 +490,17 @@ export const SessionCourtBoardTab: React.FC<SessionCourtBoardTabProps> = ({
             testID="board-add-rotation"
           />
         ) : null}
+        {/* Destructive, and it names the round it will delete so a mis-tap
+            after swiping the chips is visible before it is confirmed. */}
+        {session.rotationCount > MIN_ROTATIONS ? (
+          <Button
+            label={t('admin.board.removeRotation', { number: rotationIndex })}
+            variant="destructive"
+            onPress={openRemoveRotation}
+            isLoading={removeRotation.isPending}
+            testID="board-remove-rotation"
+          />
+        ) : null}
         <Button
           label={t('admin.board.pairingRules')}
           variant="ghost"
@@ -486,6 +535,22 @@ export const SessionCourtBoardTab: React.FC<SessionCourtBoardTabProps> = ({
         isConfirming={addRotation.isPending || saveLineup.isPending}
         isDestructive
         testID="board-add-rotation-dialog"
+      />
+
+      {/* Unlike the two dialogs above this does not rebuild anything — only
+          the deleted round's own pairings are lost. It still asks, because
+          those pairings do not come back. */}
+      <Dialog
+        isVisible={isRemoveRotationOpen}
+        title={t('admin.board.removeRotationTitle', { number: rotationIndex })}
+        message={t('admin.board.removeRotationMessage')}
+        confirmLabel={t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirmRemoveRotation}
+        onCancel={closeRemoveRotation}
+        isConfirming={removeRotation.isPending}
+        isDestructive
+        testID="board-remove-rotation-dialog"
       />
 
       <PairingRulesSheet

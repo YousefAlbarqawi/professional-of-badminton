@@ -177,6 +177,13 @@ export type Database = {
             foreignKeyName: "balance_entries_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
+            referencedRelation: "v_session_costs"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "balance_entries_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
             referencedRelation: "v_session_financials"
             referencedColumns: ["session_id"]
           },
@@ -287,6 +294,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "session_instances"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_costs"
+            referencedColumns: ["session_id"]
           },
           {
             foreignKeyName: "bookings_session_id_fkey"
@@ -543,6 +557,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "session_instances"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "locked_courts_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_costs"
+            referencedColumns: ["session_id"]
           },
           {
             foreignKeyName: "locked_courts_session_id_fkey"
@@ -901,6 +922,13 @@ export type Database = {
             foreignKeyName: "push_jobs_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
+            referencedRelation: "v_session_costs"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "push_jobs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
             referencedRelation: "v_session_financials"
             referencedColumns: ["session_id"]
           },
@@ -980,6 +1008,13 @@ export type Database = {
             foreignKeyName: "rotations_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
+            referencedRelation: "v_session_costs"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "rotations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
             referencedRelation: "v_session_financials"
             referencedColumns: ["session_id"]
           },
@@ -1052,11 +1087,84 @@ export type Database = {
             foreignKeyName: "session_coaches_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
+            referencedRelation: "v_session_costs"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "session_coaches_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
             referencedRelation: "v_session_financials"
             referencedColumns: ["session_id"]
           },
           {
             foreignKeyName: "session_coaches_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_occupancy"
+            referencedColumns: ["session_id"]
+          },
+        ]
+      }
+      session_extra_costs: {
+        Row: {
+          amount_fils: number
+          created_at: string
+          created_by: string
+          id: string
+          kind: Database["public"]["Enums"]["session_extra_cost_kind"]
+          label: string | null
+          session_id: string
+        }
+        Insert: {
+          amount_fils: number
+          created_at?: string
+          created_by: string
+          id?: string
+          kind: Database["public"]["Enums"]["session_extra_cost_kind"]
+          label?: string | null
+          session_id: string
+        }
+        Update: {
+          amount_fils?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["session_extra_cost_kind"]
+          label?: string | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_extra_costs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_extra_costs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "session_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_extra_costs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_costs"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "session_extra_costs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_financials"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "session_extra_costs_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "v_session_occupancy"
@@ -1071,7 +1179,9 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           capacity: number | null
+          coach_fee_override_fils: number | null
           coach_fee_share_fils: number
+          court_cost_override_fils: number | null
           court_cost_share_fils: number
           court_count: number
           created_at: string
@@ -1092,6 +1202,7 @@ export type Database = {
           updated_at: string
           venue_id: string
           water_cost_fils: number
+          water_cost_override_fils: number | null
         }
         Insert: {
           assistant_coach_count?: number
@@ -1099,7 +1210,9 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           capacity?: number | null
+          coach_fee_override_fils?: number | null
           coach_fee_share_fils?: number
+          court_cost_override_fils?: number | null
           court_cost_share_fils?: number
           court_count: number
           created_at?: string
@@ -1120,6 +1233,7 @@ export type Database = {
           updated_at?: string
           venue_id: string
           water_cost_fils?: number
+          water_cost_override_fils?: number | null
         }
         Update: {
           assistant_coach_count?: number
@@ -1127,7 +1241,9 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           capacity?: number | null
+          coach_fee_override_fils?: number | null
           coach_fee_share_fils?: number
+          court_cost_override_fils?: number | null
           court_cost_share_fils?: number
           court_count?: number
           created_at?: string
@@ -1148,6 +1264,7 @@ export type Database = {
           updated_at?: string
           venue_id?: string
           water_cost_fils?: number
+          water_cost_override_fils?: number | null
         }
         Relationships: [
           {
@@ -1354,6 +1471,13 @@ export type Database = {
             foreignKeyName: "waitlist_entries_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
+            referencedRelation: "v_session_costs"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "waitlist_entries_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
             referencedRelation: "v_session_financials"
             referencedColumns: ["session_id"]
           },
@@ -1368,6 +1492,22 @@ export type Database = {
       }
     }
     Views: {
+      player_credit_balances: {
+        Row: {
+          credit_expires: string | null
+          credits: number | null
+          player_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_subscriptions_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_player_credit_balance: {
         Row: {
           expires_on: string | null
@@ -1400,6 +1540,23 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      v_session_costs: {
+        Row: {
+          coach_fee_default_fils: number | null
+          coach_fee_fils: number | null
+          coach_fee_override_fils: number | null
+          cost_fils: number | null
+          court_cost_default_fils: number | null
+          court_cost_fils: number | null
+          court_cost_override_fils: number | null
+          extras_fils: number | null
+          session_id: string | null
+          water_cost_default_fils: number | null
+          water_cost_fils: number | null
+          water_cost_override_fils: number | null
+        }
+        Relationships: []
       }
       v_session_financials: {
         Row: {
@@ -1434,9 +1591,15 @@ export type Database = {
       }
     }
     Functions: {
-      add_rotation: {
-        Args: { p_session_id: string }
-        Returns: number
+      add_rotation: { Args: { p_session_id: string }; Returns: number }
+      add_session_extra_cost: {
+        Args: {
+          p_amount_fils: number
+          p_kind: Database["public"]["Enums"]["session_extra_cost_kind"]
+          p_label?: string
+          p_session_id: string
+        }
+        Returns: string
       }
       adjust_credits: {
         Args: { p_delta: number; p_note: string; p_subscription_id: string }
@@ -1486,7 +1649,9 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           capacity: number | null
+          coach_fee_override_fils: number | null
           coach_fee_share_fils: number
+          court_cost_override_fils: number | null
           court_cost_share_fils: number
           court_count: number
           created_at: string
@@ -1507,6 +1672,7 @@ export type Database = {
           updated_at: string
           venue_id: string
           water_cost_fils: number
+          water_cost_override_fils: number | null
         }
         SetofOptions: {
           from: "*"
@@ -1523,7 +1689,9 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           capacity: number | null
+          coach_fee_override_fils: number | null
           coach_fee_share_fils: number
+          court_cost_override_fils: number | null
           court_cost_share_fils: number
           court_count: number
           created_at: string
@@ -1544,6 +1712,7 @@ export type Database = {
           updated_at: string
           venue_id: string
           water_cost_fils: number
+          water_cost_override_fils: number | null
         }
         SetofOptions: {
           from: "*"
@@ -1560,7 +1729,9 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           capacity: number | null
+          coach_fee_override_fils: number | null
           coach_fee_share_fils: number
+          court_cost_override_fils: number | null
           court_cost_share_fils: number
           court_count: number
           created_at: string
@@ -1581,6 +1752,7 @@ export type Database = {
           updated_at: string
           venue_id: string
           water_cost_fils: number
+          water_cost_override_fils: number | null
         }
         SetofOptions: {
           from: "*"
@@ -1645,6 +1817,7 @@ export type Database = {
       default_rotation_count: { Args: { p_minutes: number }; Returns: number }
       delete_announcement: { Args: { p_id: string }; Returns: undefined }
       delete_pairing_rule: { Args: { p_rule_id: string }; Returns: undefined }
+      delete_session_extra_cost: { Args: { p_id: string }; Returns: undefined }
       enqueue_push_job: {
         Args: {
           p_announcement_id: string
@@ -1718,7 +1891,9 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           capacity: number | null
+          coach_fee_override_fils: number | null
           coach_fee_share_fils: number
+          court_cost_override_fils: number | null
           court_cost_share_fils: number
           court_count: number
           created_at: string
@@ -1739,6 +1914,7 @@ export type Database = {
           updated_at: string
           venue_id: string
           water_cost_fils: number
+          water_cost_override_fils: number | null
         }
         SetofOptions: {
           from: "*"
@@ -1797,6 +1973,10 @@ export type Database = {
         Args: { p_locale: string; p_platform: string; p_token: string }
         Returns: undefined
       }
+      remove_rotation: {
+        Args: { p_rotation_index: number; p_session_id: string }
+        Returns: number
+      }
       reopen_session_review: {
         Args: { p_session_id: string }
         Returns: undefined
@@ -1829,11 +2009,27 @@ export type Database = {
           week_start: string
         }[]
       }
-      report_sections: {
-        Args: { p_month: string }
-        Returns: Json
-      }
+      report_sections: { Args: { p_month: string }; Returns: Json }
       report_session_table: {
+        Args: { p_month: string }
+        Returns: {
+          capacity: number
+          cost_fils: number
+          ends_at: string
+          outstanding_fils: number
+          player_count: number
+          profit_fils: number
+          revenue_fils: number
+          session_date: string
+          session_id: string
+          session_type: Database["public"]["Enums"]["session_type"]
+          starts_at: string
+          venue_id: string
+          venue_name_ar: string
+          venue_name_en: string
+        }[]
+      }
+      report_sessions: {
         Args: { p_month: string }
         Returns: {
           capacity: number
@@ -1889,6 +2085,7 @@ export type Database = {
           cost_fils: number
           court_cost_fils: number
           credit_fils: number
+          extras_fils: number
           outstanding_fils: number
           owed_to_date_fils: number
           profit_fils: number
@@ -1924,6 +2121,10 @@ export type Database = {
       }
       search_players: {
         Args: {
+          p_after_id?: string
+          p_after_name?: string
+          p_after_owed?: number
+          p_after_tier?: Database["public"]["Enums"]["tier"]
           p_has_subscription?: boolean
           p_limit?: number
           p_owes_money?: boolean
@@ -1964,6 +2165,15 @@ export type Database = {
           p_player_b: string
         }
         Returns: string
+      }
+      set_session_costs: {
+        Args: {
+          p_coach_fee_fils?: number
+          p_court_cost_fils?: number
+          p_session_id: string
+          p_water_cost_fils?: number
+        }
+        Returns: undefined
       }
       settle_push_receipts: { Args: { p_results: Json }; Returns: number }
       split_share: {
@@ -2019,6 +2229,7 @@ export type Database = {
       payment_status: "unpaid" | "paid" | "partial" | "waived"
       push_job_kind: "waitlist_spot" | "announcement"
       rotation_rule: "rule_1_similar" | "rule_2_mixed"
+      session_extra_cost_kind: "overtime" | "snacks" | "shuttlecocks" | "other"
       session_status:
         | "scheduled"
         | "in_progress"
@@ -2181,6 +2392,7 @@ export const Constants = {
       payment_status: ["unpaid", "paid", "partial", "waived"],
       push_job_kind: ["waitlist_spot", "announcement"],
       rotation_rule: ["rule_1_similar", "rule_2_mixed"],
+      session_extra_cost_kind: ["overtime", "snacks", "shuttlecocks", "other"],
       session_status: [
         "scheduled",
         "in_progress",
@@ -2196,4 +2408,3 @@ export const Constants = {
     },
   },
 } as const
-

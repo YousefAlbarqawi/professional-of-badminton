@@ -97,7 +97,12 @@ export async function fetchPlayerPage(
     ...(cursor === null
       ? {}
       : {
-          p_after_tier: cursor.tier,
+          // An unrated player's tier is genuinely null, and the RPC's
+          // `p_after_tier` defaults to NULL — so omitting the argument and
+          // sending NULL are the same call. Omitted, because the generated
+          // types do not carry `| null` on a defaulted parameter and this
+          // codebase does not silence that with a cast.
+          ...(cursor.tier === null ? {} : { p_after_tier: cursor.tier }),
           p_after_owed: cursor.owedFils,
           p_after_name: cursor.fullName,
           p_after_id: cursor.id,

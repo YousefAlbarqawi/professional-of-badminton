@@ -1,6 +1,7 @@
 /**
- * Verify email. BUILD-SPEC 14.3: the address, a resend behind a 60 second
- * cooldown, and a poll that moves the player on by itself.
+ * Verify email. BUILD-SPEC 14.3: the address, the six digit code, a resend
+ * behind a 60 second cooldown, and a poll that moves the player on by itself
+ * if he taps the link instead.
  */
 import React from 'react';
 import { act, fireEvent, waitFor, type RenderResult } from '@testing-library/react-native';
@@ -20,11 +21,13 @@ jest.mock('@/lib/supabase');
 const mockPoll = jest.fn();
 const mockResend = jest.fn();
 const mockSignUp = jest.fn();
+const mockVerifyCode = jest.fn();
 
 jest.mock('@/features/auth/api', () => ({
   pollForConfirmation: (...args: unknown[]) => mockPoll(...args),
   resendConfirmation: (...args: unknown[]) => mockResend(...args),
   signUp: (...args: unknown[]) => mockSignUp(...args),
+  verifyEmailCode: (...args: unknown[]) => mockVerifyCode(...args),
 }));
 
 type ScreenProps = React.ComponentProps<typeof VerifyEmailScreen>;
@@ -90,6 +93,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockPoll.mockResolvedValue(null);
   mockResend.mockResolvedValue(undefined);
+  mockVerifyCode.mockResolvedValue({ access_token: 'token' });
 });
 
 describe('VerifyEmailScreen', () => {
@@ -161,6 +165,69 @@ describe('VerifyEmailScreen', () => {
       ...FROM_SIGN_UP.signUpInput,
       email: 'other@example.com',
     });
+  });
+
+  it('exchanges the typed code for a session', async () => {
+    const view = await renderScreen();
+
+    await fireEvent.changeText(view.getByTestId('verify-code-input'), '123456');
+    await fireEvent.press(view.getByTestId('verify-code-submit'));
+
+    await waitFor(() => expect(mockVerifyCode).toHaveBeenCalled());
+    expect(mockVerifyCode.mock.calls[0]?.[0]).toEqual({ email: EMAIL, code: '123456' });
+  });
+
+  it('strips the space a mail client pastes between the groups', async () => {
+    const view = await renderScreen();
+
+    await fireEvent.changeText(view.getByTestId('verify-code-input'), '123 456');
+    await fireEvent.press(view.getByTestId('verify-code-submit'));
+
+    await waitFor(() => expect(mockVerifyCode).toHaveBeenCalled());
+    expect(mockVerifyCode.mock.calls[0]?.[0]).toEqual({ email: EMAIL, code: '123456' });
+  });
+
+  it('refuses a code that is not six digits without asking the server', async () => {
+    const view = await renderScreen();
+
+    await fireEvent.changeText(view.getByTestId('verify-code-input'), '12345');
+    await fireEvent.press(view.getByTestId('verify-code-submit'));
+
+    await waitFor(() =>
+      expect(view.getByText('Enter the 6 digit code from the email.')).toBeTruthy(),
+    );
+    expect(mockVerifyCode).not.toHaveBeenCalled();
+  });
+
+  it('says so when the server rejects the code', async () => {
+    mockVerifyCode.mockRejectedValue(new Error('Token has expired or is invalid'));
+    const view = await renderScreen();
+
+    await fireEvent.changeText(view.getByTestId('verify-code-input'), '123456');
+    await fireEvent.press(view.getByTestId('verify-code-submit'));
+
+    await waitFor(() =>
+      expect(view.getByText('That code is wrong or has expired. Ask for a new one.')).toBeTruthy(),
+    );
+  });
+
+  it('clears a stale code when a new one is sent', async () => {
+    jest.useFakeTimers();
+    try {
+      const view = await renderScreen();
+
+      await fireEvent.changeText(view.getByTestId('verify-code-input'), '111111');
+
+      await act(async () => {
+        jest.advanceTimersByTime(RESEND_COOLDOWN_SECONDS * 1000);
+      });
+      await waitFor(() => expect(view.getByTestId('verify-resend')).not.toBeDisabled());
+      await fireEvent.press(view.getByTestId('verify-resend'));
+
+      await waitFor(() => expect(view.getByTestId('verify-code-input').props.value).toBe(''));
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('renders in Arabic', async () => {

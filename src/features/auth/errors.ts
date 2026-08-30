@@ -14,6 +14,7 @@ export type AuthErrorCode =
   | 'invalid_credentials'
   | 'email_not_confirmed'
   | 'email_in_use'
+  | 'invalid_code'
   | 'weak_password'
   | 'too_many_requests'
   | 'network'
@@ -32,6 +33,9 @@ const MESSAGE_KEYS: Record<AuthErrorCode, string> = {
   // showing this. It exists for the paths that cannot route.
   email_not_confirmed: 'error.confirmEmailFirst',
   email_in_use: 'error.emailInUse',
+  // 14.3: a wrong code and an expired one are the same dead end for the
+  // player, and the same fix — ask for a new one.
+  invalid_code: 'error.invalidCode',
   weak_password: 'validation.passwordWeak',
   too_many_requests: 'error.tooManyRequests',
   network: 'error.network',
@@ -48,6 +52,8 @@ const CODE_MAP: Record<string, AuthErrorCode> = {
   user_already_exists: 'email_in_use',
   email_exists: 'email_in_use',
   weak_password: 'weak_password',
+  otp_expired: 'invalid_code',
+  otp_disabled: 'invalid_code',
   over_email_send_rate_limit: 'too_many_requests',
   over_request_rate_limit: 'too_many_requests',
 };
@@ -57,6 +63,16 @@ function fromMessage(message: string): AuthErrorCode {
   if (text.includes('invalid login credentials')) return 'invalid_credentials';
   if (text.includes('email not confirmed')) return 'email_not_confirmed';
   if (text.includes('already registered')) return 'email_in_use';
+  // Checked before the password fallback: GoTrue's own wording for a bad code
+  // is "Token has expired or is invalid", which contains neither "otp" nor
+  // "code", so the phrase itself has to be matched.
+  if (
+    text.includes('token has expired or is invalid') ||
+    text.includes('otp') ||
+    text.includes('invalid token')
+  ) {
+    return 'invalid_code';
+  }
   if (text.includes('password')) return 'weak_password';
   if (text.includes('rate limit') || text.includes('too many')) return 'too_many_requests';
   if (text.includes('network') || text.includes('failed to fetch')) return 'network';
@@ -85,6 +101,14 @@ export function toAppAuthError(error: unknown): AppAuthError {
 
 export function authErrorMessageKey(error: unknown): string {
   return toAppAuthError(error).messageKey;
+}
+
+/** Raised when a code exchange somehow succeeds without returning a session. */
+export class InvalidCodeError extends AuthError {
+  constructor() {
+    super('Token has expired or is invalid', 403, 'otp_expired');
+    this.name = 'InvalidCodeError';
+  }
 }
 
 /** Raised in place of GoTrue's silence when an address is already taken. */

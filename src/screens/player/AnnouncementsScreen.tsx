@@ -10,7 +10,11 @@
  * `features/announcements/readState.ts` for why it is not a column.
  *
  * D72 puts the WhatsApp affordance on the empty and error states as well as
- * the populated one.
+ * the populated one. On the populated list it is pinned below the scroll
+ * rather than sitting at the end of it: a player who opens this tab is often
+ * here *because* he wants to ask something, and with a dozen notices above it
+ * the button was several flicks away. `EmptyState` and `ErrorState` carry
+ * their own, so the bar appears only when there are rows to scroll past.
  */
 import React, { useCallback } from 'react';
 import { RefreshControl, ScrollView, View } from 'react-native';
@@ -98,41 +102,61 @@ export const AnnouncementsScreen: React.FC<Props> = ({ navigation }) => {
   const rows = announcements.data;
 
   return (
-    <ScrollView
-      testID="announcements-list"
-      style={{ backgroundColor: theme.colors.bg }}
-      contentContainerStyle={{ padding: theme.spacing.lg, gap: theme.spacing.md }}
-      refreshControl={
-        <RefreshControl
-          refreshing={announcements.isFetching}
-          onRefresh={refetch}
-          tintColor={theme.colors.textSecondary}
-        />
-      }
-    >
-      {rows.length === 0 ? (
-        // EmptyState and ErrorState both carry the WhatsApp button already
-        // (D72), so the standalone one below is for the populated list.
-        <EmptyState message={t('announcements.empty')} testID="announcements-empty" />
-      ) : (
-        rows.map((announcement) => (
-          <AnnouncementCard
-            key={announcement.id}
-            announcement={announcement}
-            now={now}
-            // While the stored list is still loading, nothing is marked
-            // unread: a dot that appears and then vanishes is worse than one
-            // that arrives a moment late.
-            isUnread={!readState.isLoading && !readState.isRead(announcement.id)}
-            onPress={() => open(announcement.id)}
-            numberOfLines={PREVIEW_LINES}
-            testID={`announcement-${announcement.id}`}
+    <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+      <ScrollView
+        testID="announcements-list"
+        style={{ backgroundColor: theme.colors.bg }}
+        contentContainerStyle={{ padding: theme.spacing.lg, gap: theme.spacing.md }}
+        refreshControl={
+          <RefreshControl
+            refreshing={announcements.isFetching}
+            onRefresh={refetch}
+            tintColor={theme.colors.textSecondary}
           />
-        ))
-      )}
+        }
+      >
+        {rows.length === 0 ? (
+          // EmptyState and ErrorState both carry the WhatsApp button already
+          // (D72), so the pinned bar below is for the populated list.
+          <EmptyState message={t('announcements.empty')} testID="announcements-empty" />
+        ) : (
+          rows.map((announcement) => (
+            <AnnouncementCard
+              key={announcement.id}
+              announcement={announcement}
+              now={now}
+              // While the stored list is still loading, nothing is marked
+              // unread: a dot that appears and then vanishes is worse than one
+              // that arrives a moment late.
+              isUnread={!readState.isLoading && !readState.isRead(announcement.id)}
+              onPress={() => open(announcement.id)}
+              numberOfLines={PREVIEW_LINES}
+              testID={`announcement-${announcement.id}`}
+            />
+          ))
+        )}
+      </ScrollView>
 
-      {rows.length === 0 ? null : <WhatsAppButton />}
-    </ScrollView>
+      {/* A sibling of the scroll view, not an absolute overlay: the list then
+          ends above the bar instead of behind it, so the last notice is fully
+          readable without a bottom padding that has to be kept in step with
+          the bar's height. The tab bar sits below this and already covers the
+          home indicator, so there is no inset to add here. */}
+      {rows.length === 0 ? null : (
+        <View
+          style={{
+            padding: theme.spacing.md,
+            alignItems: 'center',
+            borderTopWidth: 1,
+            borderTopColor: theme.colors.border,
+            backgroundColor: theme.colors.bg,
+          }}
+          testID="announcements-contact-bar"
+        >
+          <WhatsAppButton />
+        </View>
+      )}
+    </View>
   );
 };
 

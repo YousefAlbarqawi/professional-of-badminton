@@ -7,7 +7,7 @@
  * knows which screen's copy applies.
  */
 import React from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/primitives/Button';
 import { Text } from '@/components/primitives/Text';
@@ -61,12 +61,19 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
           onPress={onRetry}
           variant="primary"
           isLoading={isRetrying}
+          style={styles.button}
         />
       )}
 
-      {showWhatsApp ? <WhatsAppButton variant="ghost" /> : null}
+      {showWhatsApp ? <WhatsAppButton variant="ghost" style={styles.button} /> : null}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  button: {
+    alignSelf: 'center',
+  },
+});
 
 export default ErrorState;

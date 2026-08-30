@@ -1,0 +1,26 @@
+<!--
+  BUILD-SPEC 14.3. The default GoTrue confirmation template sends
+  `{{ .ConfirmationURL }}` only. A mobile-only app (D79) has no page for that
+  link to land on, which is the same dead end OPEN-ITEMS.md records for the
+  password reset.
+
+  `{{ .Token }}` is the six digit code `auth.email.otp_length` already
+  configures. The player types it into VerifyEmailScreen and `verifyOtp`
+  returns a session directly, so nothing has to leave the phone.
+
+  The link is kept underneath it because it costs nothing and still works:
+  a player reading his mail on a desktop can tap it, and 14.3's poll picks the
+  confirmation up exactly as it always has.
+-->
+<h2>Confirm your email address</h2>
+
+<p>Enter this code in the app to finish signing up:</p>
+
+<p style="font-size: 28px; font-weight: bold; letter-spacing: 4px;">{{ .Token }}</p>
+
+<p>The code expires in one hour.</p>
+
+<p>Or, if you are reading this on a computer, you can
+  <a href="{{ .ConfirmationURL }}">confirm your email address here</a>.</p>
+
+<p>If you did not create an account, you can ignore this message.</p>

@@ -10,6 +10,10 @@
  * The splash screen stays up for both. Restoring the session happens under
  * RootNavigator rather than here, because it needs the theme and the strings to
  * show anything while it waits.
+ *
+ * `AnimatedSplashHost` covers the seam where the native splash is torn down:
+ * it draws the same logo on the same background and fades out. See
+ * `app/AnimatedSplash.tsx`.
  */
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
@@ -23,6 +27,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClientProvider } from '@tanstack/react-query';
 
+import { AnimatedSplashHost } from '@/app/AnimatedSplash';
 import { RootNavigator } from '@/app/RootNavigator';
 import { navigationRef } from '@/app/navigationRef';
 import { navigationTheme } from '@/app/navigationTheme';
@@ -56,7 +61,13 @@ export default function App(): React.ReactElement | null {
   const [areFontsLoaded, fontError] = useFonts(CAIRO_FONTS);
 
   useEffect(() => {
-    void initI18n().then(() => setIsI18nReady(true));
+    // `isReloading` means the resolved language disagreed with the native
+    // layout direction and the app is relaunching to pick it up. Staying on
+    // the splash screen is the point: the launch being replaced must never
+    // render, or the player sees the mirroring it exists to correct.
+    void initI18n().then(({ isReloading }) => {
+      if (!isReloading) setIsI18nReady(true);
+    });
   }, []);
 
   // Query polling and refetching follow the foreground, not a browser window
@@ -87,12 +98,31 @@ export default function App(): React.ReactElement | null {
                   (D72), and outside everything that can throw while rendering. */}
               <AppErrorBoundary>
                 <AuthProvider>
-                  <View style={styles.root} onLayout={handleLayout}>
+                  <View
+                    style={styles.root}
+                    onLayout={handleLayout}
+                    // TEMPORARY DIAGNOSTIC — remove. Logs every touch React
+                    // Native actually receives, without consuming it, so a tap
+                    // that "does nothing" can be told apart from one that never
+                    // arrived.
+                    onStartShouldSetResponderCapture={(event) => {
+                      const { pageX, pageY, locationX, locationY } = event.nativeEvent;
+                      console.log(
+                        `[POB-TOUCH] page=${Math.round(pageX)},${Math.round(pageY)} location=${Math.round(locationX)},${Math.round(locationY)}`,
+                      );
+                      return false;
+                    }}
+                  >
                     <StatusBar style="light" />
                     {/* The ref is how a notification tap navigates. Section 18. */}
                     <NavigationContainer theme={navigationTheme} ref={navigationRef}>
                       <RootNavigator />
                     </NavigationContainer>
+                    {/* Over the tree, not instead of it: the native splash has
+                        just been hidden and this picks the same logo up on the
+                        same background, animates it once, and retires itself.
+                        Nothing below waits for it. */}
+                    <AnimatedSplashHost />
                   </View>
                 </AuthProvider>
               </AppErrorBoundary>

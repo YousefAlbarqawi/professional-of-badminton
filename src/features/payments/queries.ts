@@ -12,6 +12,7 @@ import {
   fetchPlayerBalance,
   fetchPlayerIdentity,
   fetchPlayerRecentSessions,
+  fetchPlayerTierHistory,
   fetchProofUrl,
   fetchSessionReview,
   fetchSessionsMoneySummary,
@@ -23,6 +24,7 @@ import type {
   PlayerRecentSession,
   ReviewRow,
   SessionMoneyGlance,
+  TierChangeEntry,
 } from './types';
 
 export const paymentKeys = {
@@ -36,6 +38,7 @@ export const paymentKeys = {
   identity: (playerId: string) => ['payments', 'identity', playerId] as const,
   recentSessions: (playerId: string, locale: Locale) =>
     ['payments', 'recentSessions', playerId, locale] as const,
+  tierHistory: (playerId: string) => ['payments', 'tierHistory', playerId] as const,
 };
 
 function useLocale(): Locale {
@@ -135,5 +138,22 @@ export function usePlayerRecentSessions(
   return useQuery({
     queryKey: paymentKeys.recentSessions(playerId, locale),
     queryFn: () => fetchPlayerRecentSessions(playerId, locale),
+  });
+}
+
+/**
+ * 15.8 section 2's change history. `isEnabled` mirrors `useSessionsMoneySummary`'s
+ * gate: `audit_log` is coach-only (7.3), so the caller passes `isCoach` and an
+ * admin viewing this same screen never issues the request at all — the same
+ * treatment Extend and the role toggle already get on `PlayerProfileScreen`.
+ */
+export function usePlayerTierHistory(
+  playerId: string,
+  isEnabled: boolean,
+): UseQueryResult<TierChangeEntry[], Error> {
+  return useQuery({
+    queryKey: paymentKeys.tierHistory(playerId),
+    queryFn: () => fetchPlayerTierHistory(playerId),
+    enabled: isEnabled,
   });
 }

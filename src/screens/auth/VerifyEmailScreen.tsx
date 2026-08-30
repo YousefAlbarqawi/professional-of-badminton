@@ -1,14 +1,16 @@
 /**
  * Verify email. BUILD-SPEC 14.3 and D12.
  *
- * The screen a player sees for as long as it takes him to open his mail app,
- * tap a link and come back. It moves on by itself when he does: the poll is a
- * sign-in attempt that fails with `email_not_confirmed` until the moment it
- * succeeds, and a successful one puts a session in place, which RootNavigator
- * reacts to.
+ * The screen a player sees for as long as it takes him to open his mail app
+ * and read the six digit code out of it.
+ *
+ * Two ways off it, both ending in a session that RootNavigator reacts to:
+ * he types the code, which `verifyOtp` exchanges directly; or he taps the link
+ * the same email carries, which the poll notices — a sign-in attempt that
+ * fails with `email_not_confirmed` until the moment it succeeds.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,13 +18,20 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { Button, Dialog, FormField, Text, isolateLTR } from '@/components/primitives';
 import { toAppAuthError } from '@/features/auth/errors';
-import { useResendConfirmation, useSignUp } from '@/features/auth/mutations';
+import {
+  useResendConfirmation,
+  useSignUp,
+  useVerifyEmailCode,
+} from '@/features/auth/mutations';
 import { usePendingVerification } from '@/features/auth/pendingVerification';
 import { useEmailConfirmationPoll } from '@/features/auth/queries';
 import {
   changeEmailSchema,
+  normaliseCode,
   normaliseEmail,
+  verifyCodeSchema,
   type ChangeEmailFormValues,
+  type VerifyCodeFormValues,
 } from '@/features/auth/schemas';
 import { useTheme } from '@/theme';
 import type { AuthStackParamList } from '@/app/types';
@@ -34,12 +43,19 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'VerifyEmail'>;
 /** 14.3: "offers *Resend* with a 60 second cooldown". */
 export const RESEND_COOLDOWN_SECONDS = 60;
 
+/**
+ * Room for the six digits and the space some mail clients paste between the
+ * groups. `normaliseCode` strips it before the code is sent.
+ */
+const CODE_INPUT_MAX_LENGTH = 7;
+
 export const VerifyEmailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t } = useTranslation();
   const theme = useTheme();
   const { pending, setPending } = usePendingVerification();
   const resend = useResendConfirmation();
   const signUp = useSignUp();
+  const verifyCode = useVerifyEmailCode();
 
   // A link went out a moment ago, at sign up. The cooldown starts full so the
   // first thing the player can do is not to ask for a second copy of it.
@@ -68,7 +84,26 @@ export const VerifyEmailScreen: React.FC<Props> = ({ navigation, route }) => {
   // Derived, not stored. The poll owns its own failure; copying it into state
   // would only give the screen a second, staler version of the same fact.
   const errorMessage =
-    actionError ?? (poll.error == null ? null : t(toAppAuthError(poll.error).messageKey));
+    actionError ??
+    (verifyCode.error == null ? null : t(toAppAuthError(verifyCode.error).messageKey)) ??
+    (poll.error == null ? null : t(toAppAuthError(poll.error).messageKey));
+
+  const codeForm = useForm<VerifyCodeFormValues>({
+    resolver: zodResolver(verifyCodeSchema),
+    defaultValues: { code: '' },
+    mode: 'onTouched',
+  });
+
+  const submitCode = useCallback(
+    (values: VerifyCodeFormValues): void => {
+      setNotice(null);
+      setActionError(null);
+      // Nothing to do on success: the session it returns reaches AuthProvider
+      // through `onAuthStateChange`, and RootNavigator swaps the stack.
+      verifyCode.mutate({ email, code: normaliseCode(values.code) });
+    },
+    [email, verifyCode],
+  );
 
   const { control, handleSubmit, formState, reset } = useForm<ChangeEmailFormValues>({
     resolver: zodResolver(changeEmailSchema),
@@ -83,10 +118,14 @@ export const VerifyEmailScreen: React.FC<Props> = ({ navigation, route }) => {
       onSuccess: () => {
         setNotice(t('auth.resendSent'));
         setSecondsLeft(RESEND_COOLDOWN_SECONDS);
+        // The old code is dead the moment a new one is issued. Clearing the
+        // field is how the screen says so.
+        codeForm.reset({ code: '' });
+        verifyCode.reset();
       },
       onError: (error) => setActionError(t(toAppAuthError(error).messageKey)),
     });
-  }, [email, resend, t]);
+  }, [codeForm, email, resend, t, verifyCode]);
 
   const openChangeEmail = useCallback((): void => {
     reset({ email });
@@ -146,17 +185,46 @@ export const VerifyEmailScreen: React.FC<Props> = ({ navigation, route }) => {
       title={t('auth.verifyTitle')}
       subtitle={t('auth.verifyBody', { email: isolateLTR(email) })}
       testID="verify-email-screen"
-      footer={<Button label={t('auth.backToSignIn')} onPress={goToSignIn} variant="ghost" />}
+      footer={
+        <Button
+          label={t('auth.backToSignIn')}
+          onPress={goToSignIn}
+          variant="ghost"
+          style={styles.footerButton}
+        />
+      }
     >
       <Text variant="body" tone="secondary">
         {t('auth.verifyWaiting')}
       </Text>
+
+      <FormField
+        control={codeForm.control}
+        name="code"
+        label={t('auth.verifyCodeLabel')}
+        hint={t('auth.verifyCodeHint')}
+        keyboardType="number-pad"
+        autoComplete="one-time-code"
+        textContentType="oneTimeCode"
+        maxLength={CODE_INPUT_MAX_LENGTH}
+        isLTR
+        testID="verify-code-input"
+      />
+
+      <Button
+        label={t('auth.verifySubmit')}
+        onPress={codeForm.handleSubmit(submitCode)}
+        isLoading={verifyCode.isPending}
+        isFullWidth
+        testID="verify-code-submit"
+      />
 
       <Button
         label={canResend ? t('auth.resend') : t('auth.resendCooldown', { seconds: secondsLeft })}
         onPress={handleResend}
         isDisabled={!canResend}
         isLoading={resend.isPending}
+        variant="secondary"
         isFullWidth
         testID="verify-resend"
       />
@@ -215,5 +283,11 @@ export const VerifyEmailScreen: React.FC<Props> = ({ navigation, route }) => {
     </AuthLayout>
   );
 };
+
+const styles = StyleSheet.create({
+  footerButton: {
+    alignSelf: 'center',
+  },
+});
 
 export default VerifyEmailScreen;

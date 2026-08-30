@@ -25,6 +25,13 @@ const AUTH_SCREENS = join(__dirname, '..', '..', 'auth');
  * 14.1 is the only screen the specification exempts. The auth screens around
  * it are the same situation — nobody signed in yet — and section 14 describes
  * none of them as carrying the action either.
+ *
+ * `LanguageSheet.tsx` is exempt for a different reason: it is not a screen. It
+ * is a two-line picker in a modal, opened from 14.12's profile, and the screen
+ * that opens it carries the affordance itself. D72 asks that the action be
+ * *reachable* from almost every screen, which it is — one dismissal away —
+ * and a "Message the coach" button between "العربية" and "English" would be
+ * the kind of clutter the rule exists to avoid rather than an instance of it.
  */
 const EXEMPT = new Set([
   'WelcomeScreen.tsx',
@@ -32,6 +39,7 @@ const EXEMPT = new Set([
   'SignUpScreen.tsx',
   'ForgotPasswordScreen.tsx',
   'AuthLayout.tsx',
+  'LanguageSheet.tsx',
 ]);
 
 function screenFiles(directory: string): string[] {

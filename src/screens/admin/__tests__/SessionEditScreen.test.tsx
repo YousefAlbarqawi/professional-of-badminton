@@ -14,6 +14,7 @@ import React from 'react';
 import { fireEvent, type RenderResult } from '@testing-library/react-native';
 
 import { renderWithProviders } from '@/test/renderWithProviders';
+import { isolateLTR } from '@/components/primitives/Text';
 import type { Session } from '@/features/sessions/types';
 import type { Fils, Locale } from '@/lib/money';
 import { parseInstant } from '@/lib/time';
@@ -85,6 +86,29 @@ function setup(overrides: Partial<Session> = {}): void {
   });
 }
 
+/**
+ * The start time is a native wheel (`TimeField`), not a text field. The module
+ * is mocked in jest.setup.ts as a host View carrying `testID` and `onChange`,
+ * and the default test platform is iOS, whose wheel commits on every tick —
+ * *Done* only closes it. Only the local hour and minute of the `Date` are
+ * read, so the calendar day is arbitrary.
+ */
+async function pickTime(
+  screen: RenderResult,
+  testID: string,
+  hours: number,
+  minutes: number,
+): Promise<void> {
+  await fireEvent.press(screen.getByTestId(testID));
+  await fireEvent(
+    screen.getByTestId(`${testID}-native`),
+    'change',
+    { type: 'set' },
+    new Date(1970, 0, 1, hours, minutes),
+  );
+  await fireEvent.press(screen.getByTestId(`${testID}-done`));
+}
+
 async function renderScreen(locale: Locale = 'en'): Promise<RenderResult> {
   return renderWithProviders(<SessionEditScreen navigation={navigation} route={route} />, {
     locale,
@@ -100,7 +124,7 @@ describe('the capacity guard', () => {
   it('states the arithmetic before he changes anything', async () => {
     const screen = await renderScreen();
 
-    expect(screen.getByText('4 courts hold 16 players. 12 are booked.')).toBeTruthy();
+    expect(screen.getByText('4 courts hold 16 players. 12 booked.')).toBeTruthy();
   });
 
   it('blocks a reduction below the current bookings and removes nobody', async () => {
@@ -143,7 +167,7 @@ describe('editing', () => {
   it('sends the start time and duration it was given', async () => {
     const screen = await renderScreen();
 
-    await fireEvent.changeText(screen.getByTestId('edit-start-time'), '20:30');
+    await pickTime(screen, 'edit-start-time', 20, 30);
     await fireEvent.press(screen.getByTestId('edit-duration-150'));
     await fireEvent.press(screen.getByTestId('edit-save'));
 
@@ -165,14 +189,24 @@ describe('editing', () => {
     expect(mockUpdate.mock.calls[0]?.[0]).toMatchObject({ priceFils: 7250 });
   });
 
-  it('refuses a malformed time', async () => {
+  it('reads the start time back as a 12 hour clock', async () => {
+    // This replaces a test that typed "7pm" into the field and expected the
+    // schema to refuse it. There is no field to type into any more: the wheel
+    // cannot produce a malformed time, which is most of why it is a wheel.
+    // `editSessionSchema` still rejects one — see the schemas suite — because a
+    // form value can arrive from somewhere other than a keystroke.
     const screen = await renderScreen();
 
-    await fireEvent.changeText(screen.getByTestId('edit-start-time'), '7pm');
-    await fireEvent.press(screen.getByTestId('edit-save'));
+    // The session starts at 19:00 Amman. 16.1: 12 hour, Western digits.
+    expect(screen.getByTestId('edit-start-time-value').children.join('')).toBe(
+      isolateLTR('7:00 PM'),
+    );
 
-    expect(mockUpdate).not.toHaveBeenCalled();
-    expect(screen.getByText('Enter a time as HH:MM, for example 19:30.')).toBeTruthy();
+    await pickTime(screen, 'edit-start-time', 6, 45);
+
+    expect(screen.getByTestId('edit-start-time-value').children.join('')).toBe(
+      isolateLTR('6:45 AM'),
+    );
   });
 
   it('warns that existing bookings keep the price they booked at', async () => {
@@ -277,7 +311,7 @@ describe('cancelling', () => {
     expect(screen.getByText('Post an announcement so players know?')).toBeTruthy();
     expect(
       screen.getByText(
-        'The session at International Independent Schools on 24 August 2026, 7:00 PM – 8:30 PM, is cancelled.',
+        'The session at International Independent Schools on 24/8/2026, 7:00 PM – 8:30 PM, is cancelled.',
       ),
     ).toBeTruthy();
   });
@@ -295,7 +329,7 @@ describe('cancelling', () => {
       screen: 'AnnouncementCompose',
       params: {
         draftBody:
-          'The session at International Independent Schools on 24 August 2026, 7:00 PM – 8:30 PM, is cancelled.',
+          'The session at International Independent Schools on 24/8/2026, 7:00 PM – 8:30 PM, is cancelled.',
       },
     });
   });

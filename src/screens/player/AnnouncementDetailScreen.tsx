@@ -16,7 +16,7 @@
  * push". It gets its own copy rather than a failed load.
  */
 import React, { useCallback, useEffect } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -121,16 +121,25 @@ export const AnnouncementDetailScreen: React.FC<Props> = ({ route }) => {
         <Text
           variant="body"
           selectable
-          style={directionStyle(announcementDirection(row.body, row.language))}
+          style={directionStyle(announcementDirection(row.body, row.language), theme.isRTL)}
           testID="announcement-detail-body"
         >
           {row.body}
         </Text>
       </Card>
 
-      <WhatsAppButton />
+      {/* Centred under the notice, not pinned to the bottom of the screen the
+          way the list's is: there is one card here and the button is already
+          in view, so a bar would only take height from the text. */}
+      <WhatsAppButton style={styles.contact} />
     </ScrollView>
   );
 };
+
+const styles = StyleSheet.create({
+  contact: {
+    alignSelf: 'center',
+  },
+});
 
 export default AnnouncementDetailScreen;

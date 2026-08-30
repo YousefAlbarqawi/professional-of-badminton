@@ -15,7 +15,7 @@
  * schedule, which really is ninety rows, uses FlashList.
  */
 import React, { useCallback } from 'react';
-import { RefreshControl, SectionList, View, type ListRenderItemInfo } from 'react-native';
+import { RefreshControl, SectionList, StyleSheet, View, type ListRenderItemInfo } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -53,7 +53,7 @@ export const ScheduleScreen: React.FC<Props> = ({ navigation }) => {
 
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<PlayerSession>): React.ReactElement => (
-      <View style={{ paddingBottom: theme.spacing.sm }}>
+      <View style={{ paddingBottom: theme.spacing.md }}>
         <SessionCard
           venue={item.venue}
           startsAt={item.startsAt}
@@ -72,7 +72,7 @@ export const ScheduleScreen: React.FC<Props> = ({ navigation }) => {
         />
       </View>
     ),
-    [openSession, theme.spacing.sm],
+    [openSession, theme.spacing.md],
   );
 
   const renderSectionHeader = useCallback(
@@ -154,7 +154,9 @@ export const ScheduleScreen: React.FC<Props> = ({ navigation }) => {
       }
       ListFooterComponent={
         sections.length === 0 ? null : (
-          <View style={{ paddingTop: theme.spacing.md, gap: theme.spacing.md }}>
+          <View
+            style={{ paddingTop: theme.spacing.md, gap: theme.spacing.md, alignItems: 'center' }}
+          >
             <Text variant="caption" tone="tertiary" align="center">
               {t('error.tooFarAhead')}
             </Text>
@@ -163,12 +165,22 @@ export const ScheduleScreen: React.FC<Props> = ({ navigation }) => {
                 home screen, and a player who cannot see the session he wants —
                 because it is past the 1 hour cutoff, or more than 5 days out —
                 is told to ask the coach one line above. */}
-            <WhatsAppButton variant="ghost" testID="schedule-whatsapp" />
+            <WhatsAppButton
+              variant="ghost"
+              style={styles.centeredButton}
+              testID="schedule-whatsapp"
+            />
           </View>
         )
       }
     />
   );
 };
+
+const styles = StyleSheet.create({
+  centeredButton: {
+    alignSelf: 'center',
+  },
+});
 
 export default ScheduleScreen;

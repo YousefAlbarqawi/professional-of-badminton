@@ -4,6 +4,7 @@
  * primitives rather than inside any one feature.
  */
 import React, { useCallback } from 'react';
+import type { StyleProp, ViewStyle } from 'react-native';
 
 import { openWhatsApp } from '@/lib/whatsapp';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +16,7 @@ export interface WhatsAppButtonProps {
   message?: string;
   variant?: ButtonProps['variant'];
   isFullWidth?: boolean;
+  style?: StyleProp<ViewStyle>;
   testID?: string;
 }
 
@@ -22,6 +24,7 @@ export const WhatsAppButton: React.FC<WhatsAppButtonProps> = ({
   message,
   variant = 'secondary',
   isFullWidth = false,
+  style,
   testID = 'whatsapp-button',
 }) => {
   const { t } = useTranslation();
@@ -36,6 +39,8 @@ export const WhatsAppButton: React.FC<WhatsAppButtonProps> = ({
       onPress={handlePress}
       variant={variant}
       isFullWidth={isFullWidth}
+      icon="logo-whatsapp"
+      style={style}
       testID={testID}
     />
   );

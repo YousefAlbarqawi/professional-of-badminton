@@ -38,38 +38,17 @@ const CANCELLATION_CUTOFF_HOURS = 3;
 const REVIEW_WINDOW_DAYS = 7;
 
 /**
- * Levantine month names, as used in Jordan. Not transliterated Gregorian ones.
- * BUILD-SPEC 16.1.
+ * ── No month names ───────────────────────────────────────
+ * There were two arrays here, Arabic and English, and nothing looks a month up
+ * by name any more. BUILD-SPEC 16.1 originally specified spelled months —
+ * Levantine (آب, أيلول, …), amended to MSA during the device verification
+ * pass, and amended again to plain numbers on direct client instruction. See
+ * OPEN-ITEMS.md for both steps.
+ *
+ * Every date and every month label in this module is now digits and
+ * separators, which has one consequence worth stating: none of them differ by
+ * language. `locale` stays in each signature anyway — see `formatSessionDate`.
  */
-const ARABIC_MONTHS = [
-  'كانون الثاني',
-  'شباط',
-  'آذار',
-  'نيسان',
-  'أيار',
-  'حزيران',
-  'تموز',
-  'آب',
-  'أيلول',
-  'تشرين الأول',
-  'تشرين الثاني',
-  'كانون الأول',
-] as const;
-
-const ENGLISH_MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-] as const;
 
 function asDate(d: Date | string): Date {
   return typeof d === 'string' ? parseISO(d) : d;
@@ -191,6 +170,26 @@ export function dayKeyToCalendarDate(dayKey: string): Date {
 }
 
 /**
+ * An `HH:mm` as the local wall-clock `Date` a native time wheel (`TimeField`)
+ * wants to open on.
+ *
+ * `dayKeyToCalendarDate`'s counterpart, and deliberately not an instant, for
+ * the same reason: the wheel reads a `Date`'s *local* hour and minute, and an
+ * Amman-anchored instant would show the wrong time on a phone in another zone.
+ * A time of day has no date, so the calendar day here is arbitrary and is
+ * never read back — the epoch day is used rather than "today" so that two
+ * renders either side of midnight cannot disagree.
+ */
+export function clockToCalendarDate(clock: string): Date {
+  const [hourPart, minutePart] = clock.split(':');
+  const hour = Number(hourPart);
+  const minute = Number(minutePart);
+  const date = new Date(1970, 0, 1);
+  date.setHours(Number.isInteger(hour) ? hour : 0, Number.isInteger(minute) ? minute : 0, 0, 0);
+  return date;
+}
+
+/**
  * Time of day, 12 hour, in Amman. "7:00 PM" in English, "7:00 مساءً" in
  * Arabic. Digits are Western in both languages. BUILD-SPEC 16.1.
  */
@@ -206,16 +205,30 @@ export function formatSessionTime(d: Date, locale: Locale): string {
 }
 
 /**
- * A session date in Amman. "20 August 2026" in English, "20 آب 2026" in
- * Arabic, using Levantine month names and Western digits. BUILD-SPEC 16.1.
+ * A session date in Amman: "12/8/2026", day first, in both languages.
+ *
+ * BUILD-SPEC 16.1 originally specified a spelled month ("20 August 2026" /
+ * "20 أغسطس 2026"); amended per direct client instruction — a number is
+ * shorter, fits a card row without wrapping, and reads identically to both
+ * audiences. Day-month-year is the order Jordan writes, and Western digits
+ * stay Western in both languages, which 16.1 does still require.
+ *
+ * No bidi mark is needed to keep it in order inside an Arabic paragraph: the
+ * digits are European numbers and the slashes are common separators between
+ * them, so UAX #9 resolves the whole run left to right on its own — which is
+ * not true of the spelled form, and is why `DateField` had to work around it.
+ *
+ * `locale` is unused now that no month name is looked up. It stays in the
+ * signature because every other formatter here takes one and roughly forty
+ * call sites pass `theme.locale`; dropping it would be churn for nothing and
+ * would have to be added back the day the format differs by language again.
  */
-export function formatSessionDate(d: Date, locale: Locale): string {
+export function formatSessionDate(d: Date, _locale: Locale): string {
   const day = formatInTimeZone(d, TZ, 'd');
-  const monthIndex = Number(formatInTimeZone(d, TZ, 'M')) - 1;
+  const month = formatInTimeZone(d, TZ, 'M');
   const year = formatInTimeZone(d, TZ, 'yyyy');
-  const month = locale === 'en' ? ENGLISH_MONTHS[monthIndex] : ARABIC_MONTHS[monthIndex];
 
-  return `${day} ${month ?? ''} ${year}`;
+  return `${day}/${month}/${year}`;
 }
 
 /**
@@ -275,29 +288,35 @@ export function shiftMonthKey(monthKey: string, delta: number): string {
 }
 
 /**
- * A month for the picker: "August 2026", "آب 2026". Levantine month names and
- * Western digits in both languages, exactly as `formatSessionDate`. 16.1.
+ * A month for the report picker: "8/2026". Month then year, matching the
+ * middle and last parts of `formatSessionDate`'s "22/8/2026", so the two read
+ * as the same notation rather than as two conventions on one screen.
+ *
+ * The leading zero is dropped for the same reason it is dropped from a day: it
+ * is a label a coach reads at a glance, not a sortable key. `ammanMonthKey` is
+ * the sortable key and is unchanged.
  */
-export function formatMonthLabel(monthKey: string, locale: Locale): string {
+export function formatMonthLabel(monthKey: string, _locale: Locale): string {
   const [year, monthPart] = monthKey.split('-');
-  const monthIndex = Number(monthPart) - 1;
-  const month = locale === 'en' ? ENGLISH_MONTHS[monthIndex] : ARABIC_MONTHS[monthIndex];
+  const month = Number(monthPart);
 
-  return `${month ?? ''} ${year ?? ''}`.trim();
+  if (!Number.isInteger(month) || year === undefined) return monthKey;
+  return `${month}/${year}`;
 }
 
 /**
  * The Sunday-anchored week a `date` column falls in, formatted for a bar
- * label. Weeks start on Sunday throughout this app, matching the weekday
- * integers of 6.2 (0 = Sunday) and `report_revenue_by_week` in migration 0036.
+ * label: "5/7". Weeks start on Sunday throughout this app, matching the
+ * weekday integers of 6.2 (0 = Sunday) and `report_revenue_by_week` in
+ * migration 0036. Numeric for the same reason `formatSessionDate` is, and
+ * because a bar label has less room than anything else in the app.
  */
-export function formatWeekLabel(dayKey: string, locale: Locale): string {
+export function formatWeekLabel(dayKey: string, _locale: Locale): string {
   const start = ammanDayStart(dayKey);
   const day = formatInTimeZone(start, TZ, 'd');
-  const monthIndex = Number(formatInTimeZone(start, TZ, 'M')) - 1;
-  const month = locale === 'en' ? ENGLISH_MONTHS[monthIndex] : ARABIC_MONTHS[monthIndex];
+  const month = formatInTimeZone(start, TZ, 'M');
 
-  return `${day} ${month ?? ''}`;
+  return `${day}/${month}`;
 }
 
 /**

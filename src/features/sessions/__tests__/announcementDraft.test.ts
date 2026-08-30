@@ -19,13 +19,15 @@ describe('cancellationAnnouncementParams', () => {
 
     expect(params).toEqual({
       venue: 'International Independent Schools',
-      date: '24 August 2026',
+      date: '24/8/2026',
       time: '7:00 PM – 8:30 PM',
     });
   });
 
-  it('uses Levantine month names and Western digits in Arabic', () => {
-    // 16.1, and see CONFLICTS FOUND C1 for why the digits are Western.
+  it('uses Western digits in Arabic', () => {
+    // 16.1, and see CONFLICTS FOUND C1 for why the digits are Western. The
+    // month name the original of this test checked for is gone: the date
+    // format is numeric now, per client instruction — see src/lib/time.ts.
     const params = cancellationAnnouncementParams({
       venueName: 'مدارس الاستقلالية الدولية',
       startsAt: STARTS,
@@ -33,7 +35,7 @@ describe('cancellationAnnouncementParams', () => {
       locale: 'ar',
     });
 
-    expect(params.date).toBe('24 آب 2026');
+    expect(params.date).toBe('24/8/2026');
     expect(params.time).toBe('7:00 مساءً – 8:30 مساءً');
     expect(params.date).not.toMatch(/[٠-٩]/);
   });
@@ -47,7 +49,7 @@ describe('cancellationAnnouncementParams', () => {
       locale: 'en',
     });
 
-    expect(params.date).toBe('25 August 2026');
+    expect(params.date).toBe('25/8/2026');
     expect(params.time).toBe('12:00 AM – 1:30 AM');
   });
 });

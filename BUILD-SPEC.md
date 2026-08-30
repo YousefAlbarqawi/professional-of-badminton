@@ -130,6 +130,7 @@ Fixed. Do not substitute.
 | Images | **expo-image-picker**, **expo-image-manipulator** | CliQ screenshot capture and compression |
 | Haptics | **expo-haptics** | 17.4's two triggers: booking success, court board swaps. Amendment to this table, phase 10 — see OPEN-ITEMS.md |
 | Dates, picking one | **@react-native-community/datetimepicker** | A35's date fields: 15.6's create form, 15.9's grant form, and the extend sheet. Amendment to this table, phase 10 — see OPEN-ITEMS.md |
+| Icons | **@expo/vector-icons** (Ionicons) | Tab bar icons on both navigators (14.0/15.0's bottom tabs, previously unspecified and rendering React Navigation's `MissingIcon` placeholder), the WhatsApp affordance's icon (D72), and elsewhere an icon reads better than a character. Ships inside every Expo project, no native linking. Amendment to this table — see OPEN-ITEMS.md |
 | Testing | **Jest** + **@testing-library/react-native**; **Vitest** for pure logic packages if separated; **Maestro** for two e2e smoke flows | See Section 19 |
 | Linting | ESLint + `@typescript-eslint`, Prettier | Enforced in CI |
 
@@ -3377,7 +3378,16 @@ Sentry for crashes and unhandled promise rejections. Supabase logs for RPC failu
 Nothing here blocks the build. Every one has a working default. Send them as a short WhatsApp message rather than convening another meeting.
 
 1. **Does the player see what he owes?** Currently no, coach-only. One line to change. (A4)
-2. **The CliQ alias or number** to display in the payment sheet. Currently a placeholder.
+2. ~~**The CliQ alias or number** to display in the payment sheet.~~ Answered: the alias is
+   `prof2023`, and the account it resolves to is held by `MOHAMMAD YOUSEF A. ABUDABBOUR`. Both
+   are hardcoded in `src/lib/config.ts` the way D71's WhatsApp number is — a public value the
+   app cannot work without, so a build missing the variable must still show the right alias
+   rather than none — with `EXPO_PUBLIC_CLIQ_ALIAS` and `EXPO_PUBLIC_CLIQ_ACCOUNT_NAME` able to
+   change either without a new binary. 14.8's alias card gained one line the spec did not ask
+   for: the account holder's name under the alias. The account is a personal one, so the name a
+   player's bank shows him after typing the alias is not the academy's, and a name he cannot
+   place at the moment of transfer stops the payment. Shown in the app first, it confirms
+   instead.
 3. **Google Maps links** for both venues, for the session detail screen.
 4. **Vector logo files**, SVG or high resolution PNG, for the app icon and splash screen. The Instagram screenshot is enough to build with but not to ship.
 5. **Who are the admins and assistant coaches**, by name and email, so their accounts can be seeded with the right roles.

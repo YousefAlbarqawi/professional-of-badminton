@@ -49,6 +49,7 @@ export async function fetchReportTotals(month: MonthKey): Promise<ReportTotals> 
     courtCostFils: row.court_cost_fils as Fils,
     waterCostFils: row.water_cost_fils as Fils,
     coachFeeFils: row.coach_fee_fils as Fils,
+    extrasFils: row.extras_fils as Fils,
     coachFeeAccruedFils: row.coach_fee_accrued_fils as Fils,
     costFils: row.cost_fils as Fils,
     cashCostFils: row.cash_cost_fils as Fils,

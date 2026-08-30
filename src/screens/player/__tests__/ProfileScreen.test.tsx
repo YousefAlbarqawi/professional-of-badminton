@@ -136,11 +136,34 @@ describe('ProfileScreen', () => {
   it('switches language on the device and on the profile', async () => {
     const view = await renderScreen();
 
-    await fireEvent.press(view.getByTestId('profile-language-toggle'));
+    // The row states the language in use and opens the picker; the picker is
+    // what changes it. A toggle labelled with the *other* language never said
+    // which one was running.
+    expect(view.getByTestId('profile-language-current').children.join('')).toBe('English');
+
+    await fireEvent.press(view.getByTestId('profile-language-row'));
+    await fireEvent.press(view.getByTestId('language-option-ar'));
 
     // 16.1: the device copy survives before login, the profile copy follows him
     // to a new phone.
     await waitFor(() => expect(mockUpdateLocale).toHaveBeenCalledWith('ar'));
+  });
+
+  it('greys out the language already in use rather than hiding it', async () => {
+    const view = await renderScreen();
+    await fireEvent.press(view.getByTestId('profile-language-row'));
+
+    // "English, and it is the one you have" is the answer the row was tapped
+    // for, so the current language is listed and inert.
+    expect(view.getByTestId('language-option-en').props.accessibilityState).toMatchObject({
+      disabled: true,
+    });
+    expect(view.getByTestId('language-option-ar').props.accessibilityState).toMatchObject({
+      disabled: false,
+    });
+
+    await fireEvent.press(view.getByTestId('language-option-en'));
+    expect(mockUpdateLocale).not.toHaveBeenCalled();
   });
 
   it('confirms before signing out, because it costs him his session', async () => {
@@ -161,8 +184,32 @@ describe('ProfileScreen', () => {
     expect(navigation.navigate).toHaveBeenCalledWith('DeleteAccount');
   });
 
-  it('offers the system settings only when notifications are actually off', async () => {
+  it('shows a player no notification section at all', async () => {
+    // Client instruction: the player's copy of this screen is gone. His phone's
+    // own settings are where a permission is granted or taken back, and a
+    // read-only status line beside a link to them earned no room.
+    mockPermission.mockReturnValue({
+      status: 'denied',
+      openSettings: jest.fn(),
+      refresh: jest.fn(),
+    });
     const view = await renderScreen();
+
+    expect(view.queryByTestId('profile-notification-status')).toBeNull();
+    expect(view.queryByTestId('profile-open-settings')).toBeNull();
+  });
+
+  it('offers a coach the system settings only when notifications are actually off', async () => {
+    mockUseMyProfile.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isFetching: false,
+      data: { ...PROFILE, role: 'coach' },
+      refetch: jest.fn(),
+    });
+
+    const view = await renderScreen();
+    expect(view.getByTestId('profile-notification-status')).toBeTruthy();
     expect(view.queryByTestId('profile-open-settings')).toBeNull();
 
     mockPermission.mockReturnValue({
@@ -174,6 +221,28 @@ describe('ProfileScreen', () => {
 
     expect(denied.getByTestId('profile-open-settings')).toBeTruthy();
     expect(denied.getByText(/Turn notifications on in system settings/)).toBeTruthy();
+  });
+
+  it('keeps subscriptions and the coach contact off a staff account. A28', async () => {
+    // The same screen serves 14.12 and the staff More stack. A coach has no
+    // subscription to spend, no ledger to read, and no reason to message
+    // himself, so all three are the player's alone.
+    mockUseMyProfile.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isFetching: false,
+      data: { ...PROFILE, role: 'coach' },
+      refetch: jest.fn(),
+    });
+
+    const view = await renderScreen();
+
+    expect(view.queryByTestId('profile-credits')).toBeNull();
+    expect(view.queryByTestId('whatsapp-button')).toBeNull();
+
+    // And it still reaches the two things a staff account comes here for.
+    expect(view.getByTestId('profile-sign-out')).toBeTruthy();
+    expect(view.getByTestId('profile-delete-account')).toBeTruthy();
   });
 
   it('has a loading state and an error state, both reachable', async () => {
@@ -206,7 +275,7 @@ describe('14.12, the credits card', () => {
 
     expect(view.getByTestId('credits-total').children.join('')).toBe('27');
     expect(view.getByTestId('credits-expiry').children.join('')).toBe(
-      'Next credit expires 20 November 2026',
+      'Next credit expires 20/11/2026',
     );
 
     await fireEvent.press(view.getByTestId('profile-credits'));

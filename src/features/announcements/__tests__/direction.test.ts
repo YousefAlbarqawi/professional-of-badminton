@@ -55,13 +55,29 @@ describe('announcementDirection', () => {
 });
 
 describe('directionStyle', () => {
-  it('aligns a right to left message to the right', () => {
-    expect(directionStyle('rtl')).toEqual({ writingDirection: 'rtl', textAlign: 'right' });
+  // React Native mirrors a literal left/right on `textAlign` under an RTL
+  // layout, so the value handed to the style is the *opposite* of the edge
+  // wanted whenever the message and the screen disagree about direction. Both
+  // layouts are covered because the app runs in both.
+  it('puts a right to left message on the right of a left to right screen', () => {
+    expect(directionStyle('rtl', false)).toEqual({
+      writingDirection: 'rtl',
+      textAlign: 'right',
+    });
   });
 
-  it('aligns a left to right message to the left', () => {
+  it('puts a left to right message on the left of a left to right screen', () => {
+    expect(directionStyle('ltr', false)).toEqual({ writingDirection: 'ltr', textAlign: 'left' });
+  });
+
+  it('puts a right to left message on the right of a right to left screen', () => {
+    // 'left' is what renders physically right once the layout is mirrored.
+    expect(directionStyle('rtl', true)).toEqual({ writingDirection: 'rtl', textAlign: 'left' });
+  });
+
+  it('puts a left to right message on the left of a right to left screen', () => {
     // 14.11's whole point: an English notice must not dangle on the right of
-    // an Arabic screen.
-    expect(directionStyle('ltr')).toEqual({ writingDirection: 'ltr', textAlign: 'left' });
+    // an Arabic screen, which is exactly what an unmirrored 'left' produced.
+    expect(directionStyle('ltr', true)).toEqual({ writingDirection: 'ltr', textAlign: 'right' });
   });
 });

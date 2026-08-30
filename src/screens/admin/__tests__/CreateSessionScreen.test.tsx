@@ -7,6 +7,7 @@ import { fireEvent, type RenderResult } from '@testing-library/react-native';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import type { VenueOption } from '@/features/sessions/types';
 import type { Locale } from '@/lib/money';
+import { isolateLTR } from '@/components/primitives/Text';
 
 import { CreateSessionScreen } from '../CreateSessionScreen';
 
@@ -42,6 +43,27 @@ const navigation = { navigate: jest.fn(), goBack } as unknown as ScreenProps['na
 async function pickDate(screen: RenderResult, testID: string, date: Date): Promise<void> {
   await fireEvent.press(screen.getByTestId(testID));
   await fireEvent(screen.getByTestId(`${testID}-native`), 'change', { type: 'set' }, date);
+  await fireEvent.press(screen.getByTestId(`${testID}-done`));
+}
+
+/**
+ * The same module in `mode="time"` (`TimeField`), driven the same way. The
+ * wheel hands back a `Date` and only its local hour and minute are read, so
+ * the calendar day here is arbitrary.
+ */
+async function pickTime(
+  screen: RenderResult,
+  testID: string,
+  hours: number,
+  minutes: number,
+): Promise<void> {
+  await fireEvent.press(screen.getByTestId(testID));
+  await fireEvent(
+    screen.getByTestId(`${testID}-native`),
+    'change',
+    { type: 'set' },
+    new Date(1970, 0, 1, hours, minutes),
+  );
   await fireEvent.press(screen.getByTestId(`${testID}-done`));
 }
 
@@ -115,7 +137,7 @@ describe('submitting', () => {
     const screen = await renderScreen();
 
     await pickDate(screen, 'create-date', new Date(2026, 8, 1));
-    await fireEvent.changeText(screen.getByTestId('create-start-time'), '20:30');
+    await pickTime(screen, 'create-start-time', 20, 30);
     await fireEvent.changeText(screen.getByTestId('create-price'), '8');
     await fireEvent.press(screen.getByTestId('create-duration-150'));
     await fireEvent.press(screen.getByTestId('create-submit'));
@@ -140,6 +162,23 @@ describe('submitting', () => {
 
     expect(mockCreate).not.toHaveBeenCalled();
     expect(screen.getByText('Enter a court count between 1 and 20.')).toBeTruthy();
+  });
+
+  it('cannot be crashed by a letter in the price field', async () => {
+    // The summary line prices the session on every keystroke, and `fils()`
+    // throws on a non-finite number by design (5.3). A letter used to take the
+    // screen down before the schema could report it; the money field now
+    // refuses the character outright and the preview no longer throws.
+    const screen = await renderScreen();
+
+    await fireEvent.changeText(screen.getByTestId('create-price'), '6a.5x');
+
+    expect(screen.getByTestId('create-price').props.value).toBe('6.5');
+    expect(screen.getByTestId('create-summary')).toBeTruthy();
+
+    // And an empty field is a form still being filled in, not a crash.
+    await fireEvent.changeText(screen.getByTestId('create-price'), '');
+    expect(screen.getByTestId('create-summary')).toBeTruthy();
   });
 
   it('shows the server’s reason when the slot is already taken', async () => {
@@ -178,8 +217,14 @@ describe('the prefill', () => {
       courtCount: 3,
     });
 
-    expect(screen.getByTestId('create-date-value').children.join('')).toBe('5 September 2026');
-    expect(screen.getByTestId('create-start-time').props.value).toBe('21:00');
+    expect(screen.getByTestId('create-date-value').children.join('')).toBe(
+      isolateLTR('5/9/2026'),
+    );
+    // 16.1's 12 hour clock, which is what the wheel shows and what every other
+    // time in the app reads as — not the `HH:mm` the form holds underneath.
+    expect(screen.getByTestId('create-start-time-value').children.join('')).toBe(
+      isolateLTR('9:00 PM'),
+    );
     expect(screen.getByTestId('create-price').props.value).toBe('8');
     expect(screen.getByTestId('create-court-count').props.value).toBe('3');
     expect(screen.getByTestId('create-rotation-count').props.value).toBe('6');

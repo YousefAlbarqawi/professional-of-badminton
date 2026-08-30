@@ -142,7 +142,7 @@ describe('the list', () => {
 
     expect(screen.getByTestId('day-header-2026-08-24')).toBeTruthy();
     expect(screen.getByTestId('day-header-2026-08-25')).toBeTruthy();
-    expect(screen.getByText('24 August 2026')).toBeTruthy();
+    expect(screen.getByText('24/8/2026')).toBeTruthy();
     expect(screen.getByTestId('session-card-a')).toBeTruthy();
     expect(screen.getByTestId('session-card-c')).toBeTruthy();
   });
@@ -210,14 +210,14 @@ describe('the list', () => {
 });
 
 describe('Arabic', () => {
-  it('renders the schedule with Levantine months and Western digits', async () => {
+  it('renders the schedule with Western digits and a numeric date', async () => {
     mockUsePlayerSchedule.mockReturnValue(
       scheduleResult({ days: [day('2026-08-24', [session()])] }),
     );
 
     const screen = await renderScreen('ar');
 
-    expect(screen.getByText('24 آب 2026')).toBeTruthy();
+    expect(screen.getByText('24/8/2026')).toBeTruthy();
     expect(screen.getByText('8 من 16 محجوز')).toBeTruthy();
     expect(screen.getByText('6.000 د.أ')).toBeTruthy();
   });

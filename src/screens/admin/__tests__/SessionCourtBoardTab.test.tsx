@@ -52,8 +52,10 @@ jest.mock('@/features/matchmaking/mutations', () => {
 });
 
 const mockAddRotation = jest.fn();
+const mockRemoveRotation = jest.fn();
 jest.mock('@/features/sessions/mutations', () => ({
   useAddRotation: () => ({ mutate: mockAddRotation, isPending: false }),
+  useRemoveRotation: () => ({ mutate: mockRemoveRotation, isPending: false }),
 }));
 
 function session(overrides: Partial<Session> = {}): Session {
@@ -481,6 +483,52 @@ describe('adding a rotation, D62/A15', () => {
     expect(
       within(screen.getByTestId('board-toast')).getByText(
         'This session already has the most rotations allowed.',
+      ),
+    ).toBeTruthy();
+  });
+});
+
+describe('removing a rotation', () => {
+  it('asks first, and deletes the rotation the chips are showing', async () => {
+    // "Delete any round", so the index is the one on screen rather than the
+    // last — the coach picks it the same way he reads it.
+    mockRemoveRotation.mockImplementation((_input, handlers) => handlers.onSuccess?.(3));
+    const screen = await render('en', { rotationCount: 4 });
+
+    await fireEvent.press(screen.getByTestId('rotation-chip-2'));
+    await fireEvent.press(screen.getByTestId('board-remove-rotation'));
+    expect(screen.getByTestId('board-remove-rotation-dialog')).toBeTruthy();
+    expect(mockRemoveRotation).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByTestId('board-remove-rotation-dialog-confirm'));
+
+    expect(mockRemoveRotation).toHaveBeenCalledWith(
+      { sessionId: 's1', rotationIndex: 2 },
+      expect.anything(),
+    );
+    // Unlike Add a rotation, nothing is rebuilt: the rounds that remain keep
+    // the pairings the coach has already read out.
+    expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  it('hides the control on a session down to its last rotation', async () => {
+    const screen = await render('en', { rotationCount: 1 });
+
+    expect(screen.queryByTestId('board-remove-rotation')).toBeNull();
+  });
+
+  it('surfaces the server’s refusal as a toast', async () => {
+    mockRemoveRotation.mockImplementation((_input, handlers) =>
+      handlers.onError?.(new Error('rotation_count_at_minimum')),
+    );
+    const screen = await render();
+
+    await fireEvent.press(screen.getByTestId('board-remove-rotation'));
+    await fireEvent.press(screen.getByTestId('board-remove-rotation-dialog-confirm'));
+
+    expect(
+      within(screen.getByTestId('board-toast')).getByText(
+        'A session needs at least one rotation.',
       ),
     ).toBeTruthy();
   });

@@ -10,7 +10,7 @@
 import { fireEvent, within, type RenderResult } from '@testing-library/react-native';
 
 import { renderWithProviders } from '@/test/renderWithProviders';
-import type { PlayerBalance, PlayerIdentity } from '@/features/payments/types';
+import type { PlayerBalance, PlayerIdentity, TierChangeEntry } from '@/features/payments/types';
 import type { Fils, Locale } from '@/lib/money';
 import { parseInstant } from '@/lib/time';
 
@@ -23,6 +23,7 @@ jest.mock('@/lib/supabase');
 const mockIdentity = jest.fn();
 const mockBalance = jest.fn();
 const mockRecentSessions = jest.fn();
+const mockTierHistory = jest.fn();
 const mockSubscriptions = jest.fn();
 const mockRole = jest.fn();
 const mockAdd = jest.fn();
@@ -32,6 +33,7 @@ jest.mock('@/features/payments/queries', () => ({
   usePlayerIdentity: () => mockIdentity(),
   usePlayerBalance: () => mockBalance(),
   usePlayerRecentSessions: () => mockRecentSessions(),
+  usePlayerTierHistory: () => mockTierHistory(),
 }));
 
 jest.mock('@/features/subscriptions/queries', () => ({
@@ -97,7 +99,7 @@ const BALANCE: PlayerBalance = {
       note: 'Short by two',
       createdAt: parseInstant('2026-08-18T20:00:00Z'),
       sessionId: 's1',
-      sessionLabel: 'Khalda · 18 August 2026',
+      sessionLabel: 'Khalda · 18/8/2026',
     },
     {
       id: 'e2',
@@ -165,6 +167,7 @@ interface Setup {
   identityQuery?: QueryOverrides & { data?: PlayerIdentity };
   balanceQuery?: QueryOverrides;
   subscriptionsQuery?: QueryOverrides;
+  tierHistoryQuery?: QueryOverrides & { data?: TierChangeEntry[] };
 }
 
 async function renderProfile(options: Setup = {}, locale: Locale = 'en'): Promise<RenderResult> {
@@ -203,6 +206,15 @@ async function renderProfile(options: Setup = {}, locale: Locale = 'en'): Promis
     error: null,
     refetch: jest.fn(),
   });
+  mockTierHistory.mockReturnValue({
+    data: [],
+    isPending: false,
+    isError: false,
+    isFetching: false,
+    error: null,
+    refetch: jest.fn(),
+    ...options.tierHistoryQuery,
+  });
   mockRole.mockReturnValue(options.role ?? 'coach');
 
   const route = { key: 'k', name: 'PlayerProfile' as const, params: { playerId: 'p1' } };
@@ -226,7 +238,7 @@ describe('15.8 section 1, identity', () => {
     // 15.8 section 2's tier picker also renders a "B+" chip, so this scopes
     // to the identity card specifically.
     expect(within(screen.getByTestId('profile-identity')).getByText('B+')).toBeTruthy();
-    expect(screen.getByText('Joined 4 March 2026')).toBeTruthy();
+    expect(screen.getByText('Joined 4/3/2026')).toBeTruthy();
   });
 });
 
@@ -236,7 +248,7 @@ describe('15.8 section 6, balance', () => {
     const screen = await renderProfile();
 
     expect(screen.getByTestId('profile-owed').children.join('')).toBe('8.000 JD');
-    expect(screen.getByText('Khalda · 18 August 2026')).toBeTruthy();
+    expect(screen.getByText('Khalda · 18/8/2026')).toBeTruthy();
     expect(screen.getByText('Short by two')).toBeTruthy();
     expect(screen.getByText('Entered by hand')).toBeTruthy();
   });
@@ -503,6 +515,50 @@ describe('15.8 section 2, tier', () => {
     await fireEvent.press(screen.getByTestId('profile-tier-picker-unrated'));
 
     expect(mockSetTier).toHaveBeenCalledWith({ playerId: 'p1', tier: null });
+  });
+
+  describe('change history', () => {
+    const CHANGE: TierChangeEntry = {
+      id: '1',
+      fromTier: 'B',
+      toTier: 'B+',
+      actorName: 'Yousef Alkhatib',
+      createdAt: parseInstant('2026-08-01T09:00:00Z'),
+    };
+
+    it('is not shown to an admin viewer — audit_log is coach-only, 7.3', async () => {
+      const screen = await renderProfile({
+        role: 'admin',
+        tierHistoryQuery: { data: [CHANGE] },
+      });
+
+      expect(screen.queryByText('Change history')).toBeNull();
+    });
+
+    it('shows each change, from, to, who and when, for a coach viewer', async () => {
+      const screen = await renderProfile({
+        role: 'coach',
+        tierHistoryQuery: { data: [CHANGE] },
+      });
+
+      expect(screen.getByText('Changed from B to B+')).toBeTruthy();
+      expect(screen.getByText('By Yousef Alkhatib, 1/8/2026')).toBeTruthy();
+    });
+
+    it('shows an empty state when nothing has ever changed', async () => {
+      const screen = await renderProfile({ role: 'coach', tierHistoryQuery: { data: [] } });
+
+      expect(screen.getByText('No tier changes recorded.')).toBeTruthy();
+    });
+
+    it('shows an error with retry on failure', async () => {
+      const screen = await renderProfile({
+        role: 'coach',
+        tierHistoryQuery: { isError: true, error: new Error('x') },
+      });
+
+      expect(screen.getByTestId('tier-history-error')).toBeTruthy();
+    });
   });
 });
 

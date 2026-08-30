@@ -13,16 +13,21 @@ const FALLBACK_WHATSAPP_NUMBER = '962792841696';
 
 /**
  * The academy's CliQ alias, shown with a copy button in the payment sheet.
- * BUILD-SPEC 10.1 step 2.
+ * BUILD-SPEC 10.1 step 2, and the answer to section 24 question 2.
  *
- * Section 24 question 2 is still open — "The CliQ alias or number to display in
- * the payment sheet. Currently a placeholder." — so this is a placeholder with
- * a shape a Jordanian player will recognise, replaced by one line of `.env`
- * once the client answers. `hasCliqAlias` is what the sheet reads to decide
- * whether it may show the alias at all: a fabricated one on a real phone would
- * send somebody's money to nobody.
+ * Hardcoded as the fallback for the same reason D71's WhatsApp number is: it is
+ * a public value the app cannot work without, so a build that reaches a phone
+ * without the variable set must still show the right alias rather than none.
  */
-const PLACEHOLDER_CLIQ_ALIAS = 'PROBADMINTON';
+const FALLBACK_CLIQ_ALIAS = 'prof2023';
+
+/**
+ * The account holder the alias resolves to, which is what a player's banking
+ * app shows him before he confirms the transfer. Displayed under the alias so
+ * that an unfamiliar personal name reads as confirmation rather than as a
+ * reason to stop — the academy's CliQ account is a personal one.
+ */
+const FALLBACK_CLIQ_ACCOUNT_NAME = 'MOHAMMAD YOUSEF A. ABUDABBOUR';
 
 function readString(value: string | undefined, fallback: string): string {
   const trimmed = value?.trim() ?? '';
@@ -35,7 +40,11 @@ export const config = {
   environment: readString(process.env.EXPO_PUBLIC_ENVIRONMENT, 'development') as Environment,
   whatsappNumber: readString(process.env.EXPO_PUBLIC_WHATSAPP_NUMBER, FALLBACK_WHATSAPP_NUMBER),
   sentryDsn: readString(process.env.EXPO_PUBLIC_SENTRY_DSN, ''),
-  cliqAlias: readString(process.env.EXPO_PUBLIC_CLIQ_ALIAS, PLACEHOLDER_CLIQ_ALIAS),
+  cliqAlias: readString(process.env.EXPO_PUBLIC_CLIQ_ALIAS, FALLBACK_CLIQ_ALIAS),
+  cliqAccountName: readString(
+    process.env.EXPO_PUBLIC_CLIQ_ACCOUNT_NAME,
+    FALLBACK_CLIQ_ACCOUNT_NAME,
+  ),
   /**
    * The EAS project the push credentials belong to. BUILD-SPEC 2.1: push is
    * expo-notifications over FCM and APNs, so Expo holds the credentials and
@@ -62,9 +71,6 @@ export const hasPushProject = config.easProjectId !== '';
 
 /** False until the hosted reset-password page exists. */
 export const hasPasswordResetUrl = config.passwordResetUrl !== '';
-
-/** False while section 24 question 2 is unanswered and the alias is the placeholder. */
-export const hasCliqAlias = config.cliqAlias !== PLACEHOLDER_CLIQ_ALIAS;
 
 export const isProduction = config.environment === 'production';
 

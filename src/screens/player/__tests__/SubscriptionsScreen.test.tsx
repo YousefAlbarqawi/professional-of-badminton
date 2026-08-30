@@ -169,7 +169,7 @@ describe('14.13 layout', () => {
 
     expect(screen.getByText('of 15 credits')).toBeTruthy();
     expect(screen.getByTestId('subscription-sub-live-expiry').children.join('')).toBe(
-      'Expires 1 October 2026',
+      'Expires 1/10/2026',
     );
   });
 

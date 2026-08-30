@@ -157,10 +157,12 @@ site_url = "http://127.0.0.1:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 # Local dev's recovery email lands in Inbucket/Mailpit regardless of this list, so nothing here
 # needs the docs/reset-password page. `pob-prod` is different: its Authentication > URL
-# Configuration must add https://<owner>.github.io/professional-of-badminton/reset-password/
-# once GitHub Pages is on, or `resetPasswordForEmail`'s redirectTo (BUILD-SPEC section 24
-# question 8, src/features/auth/api.ts) is rejected. This file is not pushed to a hosted
-# project's auth settings, so that addition is a manual dashboard step — see store/README.md.
+# Configuration must list https://professionalofbadminton.com/reset-password/, or
+# `resetPasswordForEmail`'s redirectTo (BUILD-SPEC section 24 question 8,
+# src/features/auth/api.ts) is rejected. The older Vercel and GitHub Pages URLs stay on that
+# allow-list too, so a reset link already in someone's inbox keeps working. This file is not
+# pushed to a hosted project's auth settings, so that is a manual dashboard step — see
+# store/README.md.
 additional_redirect_urls = ["https://127.0.0.1:3000"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
@@ -202,8 +204,10 @@ password_requirements = "letters_digits"
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
 # Raised from the default 2 so that local development and the integration suite
-# can register more than two accounts in an hour. Mailpit is not an SMTP server,
-# so this is inert locally either way.
+# can register more than two accounts in an hour. Now that `auth.email.smtp` is
+# configured this is live rather than inert, and it is the ceiling the
+# integration suite runs under — Resend's own free tier (100/day) is the lower
+# limit in practice.
 email_sent = 100
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
@@ -248,15 +252,43 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Use a production-ready SMTP server
-# [auth.email.smtp]
-# enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# Real delivery in local development, so a confirmation code can be read in a
+# real inbox rather than only in Mailpit on port 54324.
+#
+# `pass` is an `env()` reference on purpose: the CLI reads `.env` at the
+# project root, which is gitignored, so the API key is never committed. Without
+# `SMTP_PASSWORD` set, `supabase start` fails loudly rather than silently
+# falling back to Mailpit — see `.env.example` for how to get the key.
+#
+# `admin_email` is an `env()` reference for the same reason, and now resolves
+# to an address on `professionalofbadminton.com`, which is verified in Resend —
+# so local mail reaches a player's own inbox, not only the address the Resend
+# account was opened with. `pob-prod` reads none of this file: its sender is
+# set by hand in the Supabase dashboard. See store/README.md.
+[auth.email.smtp]
+enabled = true
+host = "smtp.resend.com"
+# 465 (implicit TLS), not the usual 587. Many ISPs — this one included — drop
+# outbound 25 and 587 to curb spam relays, which shows up as GoTrue hanging for
+# ten seconds and answering /signup with a 504 rather than as a refused
+# connection. Resend also answers on 2465 and 2587 if 465 is ever blocked too.
+port = 465
+user = "resend"
+pass = "env(SMTP_PASSWORD)"
+# The From address, via `env()` so that flipping from Resend's shared sender to
+# one on professionalofbadminton.com is a `.env` edit rather than a config
+# change — and so a hosted project can carry a different value. Resend rejects
+# any From it has not verified, so this and `resend.com/domains` move together.
+admin_email = "env(SMTP_SENDER)"
+sender_name = "Professional of Badminton"
+
+# BUILD-SPEC 14.3: the confirmation email carries the six digit `otp_length`
+# code, not only a link. `supabase/templates/confirm.html` says why. A hosted
+# project does not read this file — paste the same template into
+# Authentication > Emails > Confirm signup in the dashboard. See store/README.md.
+[auth.email.template.confirmation]
+subject = "Confirm your email address"
+content_path = "./supabase/templates/confirm.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

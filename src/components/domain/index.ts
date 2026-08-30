@@ -17,6 +17,7 @@ export { RotationChips, type RotationChipsProps } from './RotationChips';
 export { SessionCard, type SessionCardProps } from './SessionCard';
 export { SubscriptionCard, type SubscriptionCardProps } from './SubscriptionCard';
 export { TierBadge, type TierBadgeProps } from './TierBadge';
+export { TierChangeRow, type TierChangeRowProps } from './TierChangeRow';
 export { TierPickerRow, type TierPickerRowProps } from './TierPickerRow';
 export {
   WeeklyRevenueChart,

@@ -203,8 +203,8 @@ describe('admin schedule', () => {
 
     const screen = await renderAdminSchedule();
 
-    expect(screen.getByText('24 August 2026')).toBeTruthy();
-    expect(screen.getByText('25 August 2026')).toBeTruthy();
+    expect(screen.getByText('24/8/2026')).toBeTruthy();
+    expect(screen.getByText('25/8/2026')).toBeTruthy();
   });
 
   it('shows an empty state with nothing scheduled', async () => {

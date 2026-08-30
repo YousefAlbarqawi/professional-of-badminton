@@ -146,10 +146,21 @@ jest.mock('react-native-gesture-handler', () => {
 
 // Reanimated's own `mock` entry point reaches through react-native-worklets
 // into a native module that does not exist under Jest, and every suite that
-// so much as imports a screen dies on it. The court board uses four things
-// from the library, so those four are what is replaced here: a shared value
-// is a plain box, an animated style is its worklet run once on the JS thread,
-// a spring resolves instantly, and `Animated.View` is a `View`.
+// so much as imports a screen dies on it. So the pieces the app actually uses
+// are replaced here: a shared value is a plain box, an animated style is its
+// worklet run once on the JS thread, every `with*` resolves to its target
+// value immediately, and `Animated.View` is a `View`.
+//
+// This started as the four things the court board needs. The welcome
+// backdrop's drifting shuttlecocks and the animated splash need five more —
+// `withDelay`, `withRepeat`, `interpolate`, `Easing` and `useReducedMotion` —
+// and a missing one is not a soft failure: the import resolves to `undefined`
+// and the component throws on render, taking its whole suite with it.
+//
+// `interpolate` is implemented rather than stubbed, because an animated style
+// that returns `undefined` for a transform is a style React Native rejects.
+// `useReducedMotion` answers false, so tests exercise the animated path — the
+// still path is the accommodation, not the common case.
 jest.mock('react-native-reanimated', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React: typeof ReactModule = require('react');
@@ -170,8 +181,42 @@ jest.mock('react-native-reanimated', () => {
     useSharedValue: <T>(initial: T) => ({ value: initial }),
     useAnimatedStyle: (factory: () => unknown) => factory(),
     useDerivedValue: (factory: () => unknown) => ({ value: factory() }),
+    useReducedMotion: () => false,
     withSpring: passThrough,
     withTiming: passThrough,
+    withDelay: <T>(_delayMs: number, animation: T): T => animation,
+    withRepeat: <T>(animation: T): T => animation,
+    withSequence: <T>(...animations: T[]): T | undefined => animations[animations.length - 1],
+    // Piecewise linear over the two arrays, extending past either end the way
+    // Reanimated's default extrapolation does. Enough for a style assertion;
+    // nothing here is trying to reproduce a curve.
+    interpolate: (value: number, input: number[], output: number[]): number => {
+      if (input.length < 2 || input.length !== output.length) return value;
+
+      let index = input.findIndex((point, i) => i > 0 && value < point) - 1;
+      if (index < 0) index = value < (input[0] ?? 0) ? 0 : input.length - 2;
+
+      const fromX = input[index] ?? 0;
+      const toX = input[index + 1] ?? 0;
+      const fromY = output[index] ?? 0;
+      const toY = output[index + 1] ?? 0;
+      if (toX === fromX) return fromY;
+
+      return fromY + ((value - fromX) / (toX - fromX)) * (toY - fromY);
+    },
+    // Every easing is identity here: `withTiming` ignores its config anyway,
+    // so these exist to be callable, not to shape anything.
+    Easing: {
+      linear: passThrough,
+      ease: passThrough,
+      sin: passThrough,
+      quad: passThrough,
+      cubic: passThrough,
+      in: passThrough,
+      out: passThrough,
+      inOut: passThrough,
+      bezier: () => passThrough,
+    },
     runOnJS: passThrough,
     runOnUI: passThrough,
   };

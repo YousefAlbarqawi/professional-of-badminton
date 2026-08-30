@@ -9,7 +9,7 @@
  *
  * Past a month the relative form stops being informative and becomes evasive,
  * so it hands back to `formatSessionDate`, which is the app's one date
- * renderer and already knows the Levantine month names.
+ * renderer and already knows the Arabic month names.
  */
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;

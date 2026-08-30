@@ -202,9 +202,9 @@ const GrantForm: React.FC<GrantFormProps> = ({ packages, playerId, onGranted }) 
               </Text>
               <Text variant="small" tone="secondary">
                 {t('admin.subs.grantPackageLine', {
-                  visits: option.visitCount,
+                  visitsText: t('admin.subs.visitsCount', { count: option.visitCount }),
                   price: formatMoney(option.priceFils, theme.locale),
-                  months: option.durationMonths,
+                  monthsText: t('admin.subs.monthsCount', { count: option.durationMonths }),
                 })}
               </Text>
               {/* 11.1 and 12.2 rule 1: this is what a credit from this package

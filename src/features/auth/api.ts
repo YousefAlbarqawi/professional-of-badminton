@@ -10,8 +10,14 @@ import { config } from '@/lib/config';
 import { AUTH_STORAGE_KEY, supabase } from '@/lib/supabase';
 import { clearSecureKey } from '@/lib/secureStorage';
 
-import { EmailInUseError, toAppAuthError } from './errors';
-import type { AuthUser, SignInInput, SignUpInput, SignUpResult } from './types';
+import { EmailInUseError, InvalidCodeError, toAppAuthError } from './errors';
+import type {
+  AuthUser,
+  SignInInput,
+  SignUpInput,
+  SignUpResult,
+  VerifyEmailCodeInput,
+} from './types';
 
 export function toAuthUser(session: Session | null): AuthUser | null {
   const user = session?.user;
@@ -74,6 +80,29 @@ export async function signIn(input: SignInInput): Promise<Session> {
 export async function resendConfirmation(email: string): Promise<void> {
   const { error } = await supabase.auth.resend({ type: 'signup', email });
   if (error) throw error;
+}
+
+/**
+ * 14.3: confirming with the six digit code the email carries.
+ *
+ * `supabase/templates/confirm.html` renders `{{ .Token }}`, so the player has
+ * a code to type rather than only a link to tap. This exchanges it for a
+ * session directly — `onAuthStateChange` fires inside AuthProvider and
+ * RootNavigator swaps the auth stack for the player tabs, exactly as following
+ * the link does.
+ */
+export async function verifyEmailCode(input: VerifyEmailCodeInput): Promise<Session> {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: input.email,
+    token: input.code,
+    type: 'signup',
+  });
+  if (error) throw error;
+  // GoTrue answers a valid exchange with a session. There is no shape where it
+  // succeeds without one, but the type is nullable, so this is the honest read
+  // rather than a non-null assertion.
+  if (data.session === null) throw new InvalidCodeError();
+  return data.session;
 }
 
 /**

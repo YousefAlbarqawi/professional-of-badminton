@@ -8,6 +8,7 @@ import { fireEvent, type RenderResult } from '@testing-library/react-native';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import type { Package } from '@/features/subscriptions/types';
 import type { Fils, Locale } from '@/lib/money';
+import { isolateLTR } from '@/components/primitives/Text';
 
 import { GrantSubscriptionScreen } from '../GrantSubscriptionScreen';
 
@@ -102,19 +103,19 @@ describe('15.9 the picker', () => {
   });
 
   it('fills the expiry and the visit count from the package chosen', async () => {
-    // 11.2 steps 3 and 4. Today is 20 August 2026; the 40 visit package runs
-    // three months, so the expiry auto-fills to 20 November 2026 — the exact
+    // 11.2 steps 3 and 4. Today is 20/8/2026; the 40 visit package runs
+    // three months, so the expiry auto-fills to 20/11/2026 — the exact
     // summary line 15.9 gives as its example.
     const screen = await renderScreen();
 
     await fireEvent.press(screen.getByTestId('package-pkg-40'));
 
     expect(screen.getByTestId('grant-expires-on-value').children.join('')).toBe(
-      '20 November 2026',
+      isolateLTR('20/11/2026'),
     );
     expect(screen.getByTestId('grant-visits').props.value).toBe('40');
     expect(screen.getByTestId('grant-summary').children.join('')).toBe(
-      '40 credits, expires 20 November 2026.',
+      '40 credits, expires 20/11/2026.',
     );
   });
 
@@ -124,7 +125,9 @@ describe('15.9 the picker', () => {
     await pickDate(screen, 'grant-starts-on', new Date(2026, 8, 1));
     await fireEvent.press(screen.getByTestId('package-pkg-40'));
 
-    expect(screen.getByTestId('grant-expires-on-value').children.join('')).toBe('1 December 2026');
+    expect(screen.getByTestId('grant-expires-on-value').children.join('')).toBe(
+      isolateLTR('1/12/2026'),
+    );
   });
 });
 
