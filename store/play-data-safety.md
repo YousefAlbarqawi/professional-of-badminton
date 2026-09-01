@@ -17,7 +17,20 @@ is wrong or this file is out of date — say which.
 | Does your app collect or share any of the required user data types?   | **Yes**                                                               |
 | Is all of the user data collected by your app encrypted in transit?   | **Yes** — every request is HTTPS to Supabase; push goes over APNs/FCM |
 | Do you provide a way for users to request that their data be deleted? | **Yes** — in-app, Profile → Delete my account (BUILD-SPEC 14.14)      |
-| Deletion URL                                                          | Not applicable: deletion is in-app and needs no web form              |
+| Delete account URL                                                    | `https://professionalofbadminton.com/delete-account/`                 |
+
+> The deletion URL was recorded here as "not applicable, deletion is in-app".
+> That is no longer true and the Play Console proves it: because the app
+> supports account creation, **Delete account URL is a required field** and the
+> Data safety form's Next button stays disabled while it is empty. Google asks
+> for a web page precisely for the player who has uninstalled the app or lost
+> access to the account, which the in-app path cannot serve. `docs/delete-account/`
+> is that page — bilingual, the same host as the privacy policy, listing the
+> in-app steps, the WhatsApp fallback, and what is deleted against what is kept.
+
+The partial-deletion question — "some or all of their data deleted **without**
+requiring them to delete their account" — is answered **No**. It is optional,
+and the app's only deletion path is deleting the whole account.
 
 ---
 

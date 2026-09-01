@@ -26,6 +26,13 @@ bought — served on `professionalofbadminton.com` rather than on the generated
 | -------------- | ------------------------------------------------ |
 | Privacy policy | `https://professionalofbadminton.com/privacy-policy/` |
 | Password reset | `https://professionalofbadminton.com/reset-password/` |
+| Delete account | `https://professionalofbadminton.com/delete-account/` |
+
+The third page was added during the Play submission itself. Play's Data safety
+form makes **Delete account URL** a required field for any app that lets users
+create an account, and refuses to advance past step 2 without it — so the
+in-app-only deletion this repository had documented was not enough. See
+`play-data-safety.md`.
 
 The apex is canonical and `www` redirects to it, which is the reverse of
 Vercel's own default. The apex is what goes into App Store Connect, Play
