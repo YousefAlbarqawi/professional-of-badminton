@@ -17,6 +17,8 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+# Points at the signing files and carries the .p12 password. Never committed.
+credentials.json
 
 # Metro
 .metro-health-check*

@@ -27,6 +27,9 @@
       "environment": "production",
       "env": {
         "EXPO_PUBLIC_ENVIRONMENT": "production"
+      },
+      "ios": {
+        "credentialsSource": "local"
       }
     }
   },
