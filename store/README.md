@@ -112,6 +112,10 @@ Exit 0 there means EAS's install phase will pass.
 
 ## 23.2, the release checklist
 
+Both stores were submitted on 2026-09-01 and both are now waiting on a
+reviewer. "Where each store stands" at the end of this section says what each
+is actually blocked on, which is not the same as what is unchecked here.
+
 - [x] The hosted pages deployed — Vercel serving `docs/`, with
       `docs/reset-password/config.js` filled with `pob-prod`'s URL and anon key
 - [x] `professionalofbadminton.com` added to the Vercel project and its two DNS
@@ -120,21 +124,42 @@ Exit 0 there means EAS's install phase will pass.
 - [x] `https://professionalofbadminton.com/reset-password/` added to
       `pob-prod`'s Authentication → URL Configuration → Redirect URLs, with the
       older Vercel and GitHub Pages URLs left on the list
+- [x] `docs/delete-account/` written and deployed. Play makes a **Delete
+      account URL** a required field for any app that lets users create an
+      account and will not advance past the Data safety form without one; see
+      `play-data-safety.md`, which used to claim this was not applicable
 - [ ] `pob-prod`'s Authentication → SMTP Settings pointed at Resend (see
       "The production sender" below) — without it Supabase falls back to its
-      own shared SMTP, which is rate limited to a handful of mails an hour
+      own shared SMTP, which is rate limited to a handful of mails an hour.
+      **This is now the most urgent item on the page.** It cost nothing while
+      prod had no users; it starts costing the moment the twelve closed-test
+      players sign up, because every one of them needs a confirmation mail
 - [x] Version bumped in `app.config.ts`, build number incremented — 1.0.0 for
-      the first release, and `appVersionSource: "remote"` with `autoIncrement`
-      carries the Android version code on EAS (7 as of the first
-      submission build)
+      the first release. `appVersionSource: "remote"` with `autoIncrement`
+      carries both counters on EAS: Android version code 7, iOS build number 4
+- [x] `ITSAppUsesNonExemptEncryption: false` declared in `app.config.ts`'s
+      `infoPlist`, committed **before** the first iOS build. App Store Connect
+      asks the export-compliance question on every build and the answer never
+      changes; adding the key afterwards would have meant discarding a finished
+      build to carry a value that was known all along
 - [x] Migrations applied to `pob-prod` — **before** the build is submitted,
       never after. All 44 are applied; `supabase migration list --linked`
       shows local and remote agreeing on every one, including 0042, 0043 and
       the version-alignment migration. The venue, cost, package and template
       portions of `seed.sql` are in (2 venues, 12 templates, 5 packages,
-      counted against prod). The dev-only portion never went near prod, and
-      prod holds **zero** users, profiles, bookings, subscriptions, payments
-      and announcements — verified by count, so no dummy data ships
+      counted against prod). The dev-only portion never went near prod
+- [x] Exactly one account exists in prod, and it is not a player.
+      `googleplay.review@professionalofbadminton.com` was created for the two
+      review teams, auto-confirmed so the unconfigured SMTP could not block it.
+      Both stores hold the same credentials. It is an ordinary `player` at
+      `level_0` with `preferred_locale` `en`, so a reviewer sees what a new
+      player sees, in a language they read.
+      **The dashboard's "Add user" form sets no user metadata**, and
+      `handle_new_user` returns early when the phone is empty (migration 0014),
+      so the trigger created no profile — the `profiles` row was inserted by
+      hand. Anyone repeating this must do the same or the account signs in to a
+      broken app. Prod still holds zero bookings, subscriptions, payments and
+      announcements
 - [x] `pob-prod` cron jobs scheduled: all seven are active — `generate-sessions`
       (03:00 Amman), `lock-expired-sessions` (03:10), `void-expired-subscriptions`
       (03:20), `purge-payment-proofs` (04:00), `advance-session-states` and
@@ -156,31 +181,110 @@ Exit 0 there means EAS's install phase will pass.
       build uploads source maps
 - [x] `eas build --profile production --platform android` — done, 2026-08-30.
       Version 1.0.0, version code 7, from commit `dcb3203`. Signed `.aab` at
-      the EAS build page (build `6bc6b189-60cc-4f46-80ee-6d6eadc29a4a`). This
-      is the bundle to upload by hand for the first release
-- [ ] `eas build --profile production --platform ios` — blocked on Apple
-      Developer Program enrollment
+      the EAS build page (build `6bc6b189-60cc-4f46-80ee-6d6eadc29a4a`)
+- [x] iOS signing credentials created — see "iOS signing" below. This was not
+      one command: EAS will not mint an Apple distribution certificate in a
+      non-interactive build and `eas credentials` has no non-interactive mode
+- [x] `eas build --profile production --platform ios` — done, 2026-09-01.
+      Version 1.0.0, build number 4, from commit `a942c0e` (build
+      `315657f2-d310-468e-9f7d-40dc1f2bd458`)
 - [ ] Smoke test on a physical iOS device and a physical Android device,
-      against prod
-- [ ] Privacy policy URL (`https://professionalofbadminton.com/privacy-policy/`)
+      against prod. Still not done on either platform, and still the last thing
+      standing between the reviewers' verdict and real players
+- [x] Privacy policy URL (`https://professionalofbadminton.com/privacy-policy/`)
       entered in App Store Connect and in Play Console
-- [ ] Play data safety form completed from `play-data-safety.md`
-- [ ] Screenshots uploaded per `screenshots.md` — all four sets are captured
-      and committed under `store/screenshots/` (iOS 6.9" and Play phone, each
-      in both languages, six screens each), so this is an upload, not a capture.
-      The Play feature graphic and 512px listing icon are in
-      `store/play-assets/`
-- [ ] Age rating 4+, category Sports
-- [ ] **First release: upload the `.aab` by hand.** `eas submit` cannot do it.
+- [x] Play data safety form completed from `play-data-safety.md` — seven data
+      types, nothing shared, encrypted in transit, deletion URL supplied
+- [x] Apple's App Privacy questionnaire completed and **published** — the same
+      seven types in Apple's taxonomy. Crash Data is the one declared *not*
+      linked to identity, which is accurate: `src/lib/monitoring.ts` sets
+      `sendDefaultPii: false` and never sets a user on the Sentry scope.
+      Publishing is a separate step from filling it in, and App Review will not
+      accept the version until it is published
+- [x] Screenshots uploaded per `screenshots.md` — all four sets, both stores,
+      both languages. On the App Store they go in the **6.9"** slot, which
+      lives in Media Manager rather than on the version page; the 6.5" slot
+      then reports "Using 6.9" Display" and needs nothing. The version page
+      offers only 6.5", whose dimensions our 1320 × 2868 files fail
+- [x] Age rating 4+, category Sports — on Play the IARC questionnaire returns
+      ESRB Everyone / PEGI 3 / ClassInd All ages; on the App Store the
+      calculated rating is 4+ across 172 countries, with the age category set
+      to **Not Applicable** rather than any override
+- [x] **First release: upload the `.aab` by hand.** `eas submit` cannot do it.
       The Google Play Developer API refuses to publish to a package that has
-      never had a release, so the very first bundle must go through the Play
-      Console UI — create the app, then Testing > Internal testing > Create new
-      release and upload the `.aab` from the EAS build page. Only after that
-      does the API path work
+      never had a release, so the very first bundle went through the Play
+      Console UI. It went to **Closed testing**, not Internal, for the reason
+      under "Where each store stands"
+- [x] `eas submit --platform ios` — the binary is on App Store Connect. This
+      needs `ascAppId`, `appleTeamId` and the three `ascApiKey*` fields in
+      `eas.json`; the `EXPO_ASC_*` environment variables cover builds but not
+      submissions
 - [ ] Google Play service account created and its JSON key wired into
       `eas.json`'s `submit.production.android.serviceAccountKeyPath` — needed
       for every release *after* the first, not for the first
 - [ ] `eas submit --platform android` for subsequent releases
+
+## Where each store stands
+
+| | Google Play | App Store |
+| --- | --- | --- |
+| App id | `4976185065492171480` | `6807263224` |
+| Submitted | 15 changes, in review | version 1.0, waiting for review |
+| Track | Closed testing — Alpha | production, manual release |
+| Countries | Jordan | Jordan |
+| Release | as soon as approved | held until you release it |
+
+**Play is not blocked on Google, it is blocked on testers.** This is a Personal
+developer account, and Google requires twelve testers opted in to a *closed*
+test for fourteen continuous days before it will grant production access.
+Internal testing does not count toward that clock, which is why the first
+release went to Closed testing instead — the checklist above originally said
+Internal. One tester is on the list (`yo.khatib@gmail.com`); eleven more are
+needed, and the fourteen days start when they opt in, not when the track was
+created.
+
+**The App Store release is deliberately manual.** Apple approving the version
+will not put it on sale; the release has to be triggered by hand, which is what
+makes the physical-device smoke test above still worth doing.
+
+Both stores are restricted to Jordan. On the App Store that is not only a match
+for the academy: distributing in the EU requires a Digital Services Act trader
+status that this account has not provided, and Apple removes apps that lack it.
+Expanding beyond Jordan means providing it first.
+
+## iOS signing
+
+EAS could not create the signing identity. `eas build --non-interactive` stops
+at "Distribution Certificate is not validated for non-interactive builds", and
+`eas credentials` offers no non-interactive mode to do it beforehand. The
+identity was therefore created directly against the App Store Connect API with
+an Admin key, and `production.ios.credentialsSource` is set to `local`.
+
+| Thing | Value |
+| --- | --- |
+| Apple team | `LBSMYS2R74` |
+| Distribution certificate | `U23SVFH3BF`, expires 2027-09-01 |
+| API key | `HFDB23UW4R`, issuer `01e40122-f36a-4e0e-9919-9ef91fce3314` |
+| Key file | `~/.appstoreconnect/AuthKey_HFDB23UW4R.p8` |
+| Signing files | `~/.appstoreconnect/pob/` |
+
+Everything secret lives outside the repository. `credentials.json` names those
+files and carries the `.p12` password, so it is gitignored alongside the
+existing `*.p12` and `*.mobileprovision` rules. `eas.json`'s `ascApiKeyPath` is
+an absolute path, which makes that one line machine-specific: another machine
+needs its own copy of the key, because Apple lets a key be downloaded once.
+
+`credentialsSource` is set under `production.ios` rather than on the profile
+itself, and the nesting matters. One level higher it would apply to Android
+too, and the next Android build would look for a local keystore instead of the
+EAS-managed one that signed version code 7.
+
+**Export the `.p12` with `-legacy`.** OpenSSL 3 defaults to PBES2 / PBKDF2 /
+AES-256-CBC, which macOS's keychain cannot import; the build dies 42 seconds in
+at "Prepare credentials" having reported the correct fingerprint and common
+name moments earlier, which makes it look like anything but an encoding
+problem. `openssl pkcs12 -export -legacy` writes the RC2-40 and 3DES form the
+keychain expects.
 
 ## Play listing assets
 
