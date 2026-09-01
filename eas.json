@@ -36,7 +36,12 @@
   "submit": {
     "production": {
       "ios": {
-        "language": "ar-SA"
+        "language": "ar-SA",
+        "ascAppId": "6807263224",
+        "appleTeamId": "LBSMYS2R74",
+        "ascApiKeyPath": "/Users/alaaghali/.appstoreconnect/AuthKey_HFDB23UW4R.p8",
+        "ascApiKeyId": "HFDB23UW4R",
+        "ascApiKeyIssuerId": "01e40122-f36a-4e0e-9919-9ef91fce3314"
       },
       "android": {
         "track": "internal",
