@@ -9,8 +9,10 @@ import { useTranslation } from 'react-i18next';
 
 import { TimeField, type TimeFieldProps } from './TimeField';
 
-export interface FormTimeFieldProps<TValues extends FieldValues>
-  extends Omit<TimeFieldProps, 'value' | 'onChange' | 'errorMessage'> {
+export interface FormTimeFieldProps<TValues extends FieldValues> extends Omit<
+  TimeFieldProps,
+  'value' | 'onChange' | 'errorMessage'
+> {
   control: Control<TValues>;
   name: FieldPath<TValues>;
 }

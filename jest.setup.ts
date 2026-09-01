@@ -90,9 +90,8 @@ jest.mock('@react-native-community/datetimepicker', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native');
 
-  const DateTimePicker = (
-    props: Record<string, unknown>,
-  ): ReactModule.ReactElement => React.createElement(View, props);
+  const DateTimePicker = (props: Record<string, unknown>): ReactModule.ReactElement =>
+    React.createElement(View, props);
 
   return { __esModule: true, default: DateTimePicker };
 });

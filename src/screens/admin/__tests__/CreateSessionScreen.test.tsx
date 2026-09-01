@@ -217,9 +217,7 @@ describe('the prefill', () => {
       courtCount: 3,
     });
 
-    expect(screen.getByTestId('create-date-value').children.join('')).toBe(
-      isolateLTR('5/9/2026'),
-    );
+    expect(screen.getByTestId('create-date-value').children.join('')).toBe(isolateLTR('5/9/2026'));
     // 16.1's 12 hour clock, which is what the wheel shows and what every other
     // time in the app reads as — not the `HH:mm` the form holds underneath.
     expect(screen.getByTestId('create-start-time-value').children.join('')).toBe(

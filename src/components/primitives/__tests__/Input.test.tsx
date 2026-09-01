@@ -30,13 +30,7 @@ async function renderInput(
   props: Partial<React.ComponentProps<typeof Input>> = {},
 ): Promise<RenderResult> {
   return renderWithProviders(
-    <Input
-      label="Email"
-      value=""
-      onChangeText={onChangeText}
-      testID="field"
-      {...props}
-    />,
+    <Input label="Email" value="" onChangeText={onChangeText} testID="field" {...props} />,
     { locale },
   );
 }

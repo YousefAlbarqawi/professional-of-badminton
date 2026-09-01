@@ -18,11 +18,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { Button, Dialog, FormField, Text, isolateLTR } from '@/components/primitives';
 import { toAppAuthError } from '@/features/auth/errors';
-import {
-  useResendConfirmation,
-  useSignUp,
-  useVerifyEmailCode,
-} from '@/features/auth/mutations';
+import { useResendConfirmation, useSignUp, useVerifyEmailCode } from '@/features/auth/mutations';
 import { usePendingVerification } from '@/features/auth/pendingVerification';
 import { useEmailConfirmationPoll } from '@/features/auth/queries';
 import {

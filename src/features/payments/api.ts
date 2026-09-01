@@ -454,7 +454,9 @@ const TIER_HISTORY_FETCH_LIMIT = 100;
 export async function fetchPlayerTierHistory(playerId: string): Promise<TierChangeEntry[]> {
   const { data, error } = await supabase
     .from('audit_log')
-    .select('id, before, after, created_at, actor:profiles!audit_log_actor_id_fkey(first_name, last_name)')
+    .select(
+      'id, before, after, created_at, actor:profiles!audit_log_actor_id_fkey(first_name, last_name)',
+    )
     .eq('entity', 'profiles')
     .eq('entity_id', playerId)
     .eq('action', 'UPDATE')
@@ -471,7 +473,8 @@ export async function fetchPlayerTierHistory(playerId: string): Promise<TierChan
       id: String(row.id),
       fromTier: toTier(row.before?.tier),
       toTier: toTier(row.after?.tier),
-      actorName: row.actor === null ? null : `${row.actor.first_name} ${row.actor.last_name}`.trim(),
+      actorName:
+        row.actor === null ? null : `${row.actor.first_name} ${row.actor.last_name}`.trim(),
       createdAt: parseInstant(row.created_at),
     }));
 }
@@ -514,10 +517,7 @@ export async function setPlayerRate(input: SetPlayerRateInput): Promise<void> {
 }
 
 /** D16: promoting to coach is refused server-side unless the caller already is one. */
-export async function setPlayerRole(
-  playerId: string,
-  role: PlayerIdentity['role'],
-): Promise<void> {
+export async function setPlayerRole(playerId: string, role: PlayerIdentity['role']): Promise<void> {
   const { error } = await supabase.from('profiles').update({ role }).eq('id', playerId);
   if (error) throw error;
 }

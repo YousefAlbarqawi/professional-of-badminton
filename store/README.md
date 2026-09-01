@@ -3,14 +3,14 @@
 Everything BUILD-SPEC section 23 asks for that is a document rather than code.
 Section 23.2's checklist is at the bottom; work down it.
 
-| File                   | What it is                                                         |
-| ---------------------- | ------------------------------------------------------------------ |
+| File                   | What it is                                                           |
+| ---------------------- | -------------------------------------------------------------------- |
 | `privacy-policy.en.md` | 23.3's privacy policy, English. Also lives at `docs/privacy-policy/` |
-| `privacy-policy.ar.md` | The same, Arabic                                                   |
-| `play-data-safety.md`  | 23.3's Play data safety answers, ready to copy into the console    |
-| `listing.en.md`        | App Store and Play listing copy, English                           |
-| `listing.ar.md`        | The same, Arabic                                                   |
-| `screenshots.md`       | 23.3's screenshot plan: which screens, which sizes, both languages |
+| `privacy-policy.ar.md` | The same, Arabic                                                     |
+| `play-data-safety.md`  | 23.3's Play data safety answers, ready to copy into the console      |
+| `listing.en.md`        | App Store and Play listing copy, English                             |
+| `listing.ar.md`        | The same, Arabic                                                     |
+| `screenshots.md`       | 23.3's screenshot plan: which screens, which sizes, both languages   |
 
 ---
 
@@ -22,8 +22,8 @@ both needed a host. Decided in phase 10, recorded in full in `OPEN-ITEMS.md`:
 bought — served on `professionalofbadminton.com` rather than on the generated
 `.vercel.app` name.
 
-| Page           | URL                                              |
-| -------------- | ------------------------------------------------ |
+| Page           | URL                                                   |
+| -------------- | ----------------------------------------------------- |
 | Privacy policy | `https://professionalofbadminton.com/privacy-policy/` |
 | Password reset | `https://professionalofbadminton.com/reset-password/` |
 | Delete account | `https://professionalofbadminton.com/delete-account/` |
@@ -195,7 +195,7 @@ is actually blocked on, which is not the same as what is unchecked here.
 - [x] Play data safety form completed from `play-data-safety.md` — seven data
       types, nothing shared, encrypted in transit, deletion URL supplied
 - [x] Apple's App Privacy questionnaire completed and **published** — the same
-      seven types in Apple's taxonomy. Crash Data is the one declared *not*
+      seven types in Apple's taxonomy. Crash Data is the one declared _not_
       linked to identity, which is accurate: `src/lib/monitoring.ts` sets
       `sendDefaultPii: false` and never sets a user on the Sentry scope.
       Publishing is a separate step from filling it in, and App Review will not
@@ -220,21 +220,21 @@ is actually blocked on, which is not the same as what is unchecked here.
       submissions
 - [ ] Google Play service account created and its JSON key wired into
       `eas.json`'s `submit.production.android.serviceAccountKeyPath` — needed
-      for every release *after* the first, not for the first
+      for every release _after_ the first, not for the first
 - [ ] `eas submit --platform android` for subsequent releases
 
 ## Where each store stands
 
-| | Google Play | App Store |
-| --- | --- | --- |
-| App id | `4976185065492171480` | `6807263224` |
-| Submitted | 15 changes, in review | version 1.0, waiting for review |
-| Track | Closed testing — Alpha | production, manual release |
-| Countries | Jordan | Jordan |
-| Release | as soon as approved | held until you release it |
+|           | Google Play            | App Store                       |
+| --------- | ---------------------- | ------------------------------- |
+| App id    | `4976185065492171480`  | `6807263224`                    |
+| Submitted | 15 changes, in review  | version 1.0, waiting for review |
+| Track     | Closed testing — Alpha | production, manual release      |
+| Countries | Jordan                 | Jordan                          |
+| Release   | as soon as approved    | held until you release it       |
 
 **Play is not blocked on Google, it is blocked on testers.** This is a Personal
-developer account, and Google requires twelve testers opted in to a *closed*
+developer account, and Google requires twelve testers opted in to a _closed_
 test for fourteen continuous days before it will grant production access.
 Internal testing does not count toward that clock, which is why the first
 release went to Closed testing instead — the checklist above originally said
@@ -259,13 +259,13 @@ at "Distribution Certificate is not validated for non-interactive builds", and
 identity was therefore created directly against the App Store Connect API with
 an Admin key, and `production.ios.credentialsSource` is set to `local`.
 
-| Thing | Value |
-| --- | --- |
-| Apple team | `LBSMYS2R74` |
-| Distribution certificate | `U23SVFH3BF`, expires 2027-09-01 |
-| API key | `HFDB23UW4R`, issuer `01e40122-f36a-4e0e-9919-9ef91fce3314` |
-| Key file | `~/.appstoreconnect/AuthKey_HFDB23UW4R.p8` |
-| Signing files | `~/.appstoreconnect/pob/` |
+| Thing                    | Value                                                       |
+| ------------------------ | ----------------------------------------------------------- |
+| Apple team               | `LBSMYS2R74`                                                |
+| Distribution certificate | `U23SVFH3BF`, expires 2027-09-01                            |
+| API key                  | `HFDB23UW4R`, issuer `01e40122-f36a-4e0e-9919-9ef91fce3314` |
+| Key file                 | `~/.appstoreconnect/AuthKey_HFDB23UW4R.p8`                  |
+| Signing files            | `~/.appstoreconnect/pob/`                                   |
 
 Everything secret lives outside the repository. `credentials.json` names those
 files and carries the `.p12` password, so it is gitignored alongside the
@@ -290,11 +290,11 @@ keychain expects.
 `store/play-assets/` holds the two things Play Console asks for that are not
 screenshots:
 
-| File                       | Size       | Where it goes                          |
-| -------------------------- | ---------- | -------------------------------------- |
-| `feature-graphic.en.png`   | 1024 × 500 | Main store listing, English            |
-| `feature-graphic.ar.png`   | 1024 × 500 | Main store listing, Arabic             |
-| `listing-icon-512.png`     | 512 × 512  | App icon on the listing                |
+| File                     | Size       | Where it goes               |
+| ------------------------ | ---------- | --------------------------- |
+| `feature-graphic.en.png` | 1024 × 500 | Main store listing, English |
+| `feature-graphic.ar.png` | 1024 × 500 | Main store listing, Arabic  |
+| `listing-icon-512.png`   | 512 × 512  | App icon on the listing     |
 
 Both feature graphics are flat PNG with no alpha, which is what Play requires.
 They are the app's own palette — `#111111` ground, `#A8D5BA` accent — with the
@@ -364,14 +364,14 @@ Local Supabase reads that address from `.env`'s `SMTP_SENDER`, via
 that file** — `pob-prod` has to be told the same thing by hand, in the Supabase
 dashboard under Authentication → SMTP Settings:
 
-| Field       | Value                                |
-| ----------- | ------------------------------------ |
-| Host        | `smtp.resend.com`                    |
-| Port        | `465`                                |
-| Username    | `resend`                             |
-| Password    | a Resend API key with Sending access |
+| Field       | Value                                 |
+| ----------- | ------------------------------------- |
+| Host        | `smtp.resend.com`                     |
+| Port        | `465`                                 |
+| Username    | `resend`                              |
+| Password    | a Resend API key with Sending access  |
 | Sender      | `noreply@professionalofbadminton.com` |
-| Sender name | `Professional of Badminton`          |
+| Sender name | `Professional of Badminton`           |
 
 Port 465 rather than 587 for the reason `supabase/config.toml` records: many
 ISPs drop outbound 587, which surfaces as GoTrue hanging and answering

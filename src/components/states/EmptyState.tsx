@@ -54,12 +54,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       </Text>
 
       {actionLabel !== undefined && onAction !== undefined ? (
-        <Button
-          label={actionLabel}
-          onPress={onAction}
-          variant="primary"
-          style={styles.button}
-        />
+        <Button label={actionLabel} onPress={onAction} variant="primary" style={styles.button} />
       ) : null}
 
       {showWhatsApp ? <WhatsAppButton variant="ghost" style={styles.button} /> : null}

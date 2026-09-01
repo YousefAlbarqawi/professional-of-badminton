@@ -527,9 +527,7 @@ describe('removing a rotation', () => {
     await fireEvent.press(screen.getByTestId('board-remove-rotation-dialog-confirm'));
 
     expect(
-      within(screen.getByTestId('board-toast')).getByText(
-        'A session needs at least one rotation.',
-      ),
+      within(screen.getByTestId('board-toast')).getByText('A session needs at least one rotation.'),
     ).toBeTruthy();
   });
 });

@@ -525,7 +525,7 @@ datetimepicker` is now listed in 2.1, the same way `expo-haptics` was added in
 this phase. `DateField`/`FormDateField` (`src/components/primitives/`) wrap it
 once: Android mounts the system dialog on press and it closes itself on a pick
 or a cancel; iOS has no such dialog, so the same picker in spinner mode is
-drawn inline under the field, committing on every tick, with a *Done* button
+drawn inline under the field, committing on every tick, with a _Done_ button
 that only closes the wheel. All three screens this item named now use it —
 15.6's create form, this one's start and expiry, and the extend sheet, whose
 minimum-date now matches its own schema rule (later than the current expiry)
@@ -908,7 +908,7 @@ sibling item below.** The two are not actually the same shape once looked at
 closely. The player directory paginates cleanly because sorting there was
 already a server round trip — `search_players` has always taken `p_sort`, so
 giving it a cursor added a capability without removing one. This table's sort
-is client-side specifically *so that* re-ordering costs nothing, and a cursor
+is client-side specifically _so that_ re-ordering costs nothing, and a cursor
 here would take that back for a page not yet a real length: today the whole
 month still arrives in one `report_sections` call (see the item above), so
 paginating this table would mean fetching a `p_sort`-scoped page, then paying
@@ -1072,10 +1072,10 @@ section above) — never through an actual RTL layout pass on a device, which is
 the only way this was ever going to be caught.
 
 **The bug.** `Text.tsx` defaulted `textAlign` to RN's `'auto'`. On iOS,
-`'auto'` resolves via the *device's own OS locale*, not the string's content
+`'auto'` resolves via the _device's own OS locale_, not the string's content
 and not the app's own chosen language — so on a device whose OS locale is
 English (unremarkable; BUILD-SPEC 16.1 deliberately starts every install in
-Arabic *regardless* of device locale, so this is not an edge case, it is the
+Arabic _regardless_ of device locale, so this is not an edge case, it is the
 expected shape of a real user's phone), every Arabic heading, label, and body
 line rendered flush left instead of right, everywhere a `flex: 1` box gave it
 room to show. Centered text (button labels) was unaffected, which is exactly
@@ -1087,7 +1087,7 @@ The first attempt set the default explicitly from `theme.isRTL` (already
 correctly `I18nManager.isRTL`) — `theme.isRTL ? 'right' : 'left'` — which
 should have worked and visibly didn't, confirmed on device with a raw RN
 `<Text>` and a hardcoded `textAlign: 'right'`, no wrapper involved. The reason:
-React Native treats a *literal* `'left'`/`'right'` on `textAlign` as a logical
+React Native treats a _literal_ `'left'`/`'right'` on `textAlign` as a logical
 value once `I18nManager.isRTL` is true, and auto-mirrors it — the same
 treatment `flexDirection: 'row'` already gets. So `'right'` under RTL renders
 physically left, cancelling the fix; swapping the hardcoded test value to
@@ -1245,7 +1245,7 @@ The account exists and the $25 is paid — `Yousef Alkhatib`, account ID
 `8107503913762265459` — but two things about it were only visible by opening
 the console:
 
-**Nothing can be created yet.** *Create app* is disabled behind a lock reading
+**Nothing can be created yet.** _Create app_ is disabled behind a lock reading
 "Complete account verifications to create new apps". Three verifications are
 outstanding, and every one of them is bound to a person rather than to this
 repository: an official identity document (Google warns it "may take a few
@@ -1257,7 +1257,7 @@ privacy policy URL have no surface to be entered into yet.
 **It is a Personal account, and the type cannot be changed after creation.**
 Personal accounts created after 13 November 2023 must run a closed test with
 12 testers opted in continuously for 14 days before production access can even
-be *applied* for, and since 2026 Google checks that those testers actually used
+be _applied_ for, and since 2026 Google checks that those testers actually used
 the app. An organization account is exempt, but needs a D-U-N-S number
 (~30 days) and a second registration, which is the slower road from here.
 
@@ -1348,8 +1348,8 @@ future reader would otherwise reasonably think was a mistake.
 
 "Every card title … sat flush left in Arabic" ends by saying the fix is a bare
 `'left'` "with no `isRTL` branch at all". That is right, and it is right for
-exactly one reason: it is correct *while the native layout direction and the
-app's language agree about direction*. They do not always.
+exactly one reason: it is correct _while the native layout direction and the
+app's language agree about direction_. They do not always.
 
 `I18nManager.forceRTL()` only takes effect after a reload, which is what
 `useChangeLanguage` exists to arrange — but a reload that does not happen, or
@@ -1360,21 +1360,21 @@ the sign-up title and every field label sat on the right.
 `Text` now defaults to `theme.alignStart`, which compares the two directions
 and cancels RN's mirroring out: when they agree it is `'left'` (the old
 behaviour, unchanged); when they disagree it is `'right'`, which mirrors back
-into the reading edge the *language* wants. The finding the entry above
+into the reading edge the _language_ wants. The finding the entry above
 records — that RN mirrors literal left/right values — is unchanged and is what
 the comparison is built on.
 
 Two other places had the same latent bug and are fixed the same way:
 
 - **`Input`** never set `textAlign` at all for a non-LTR field. UIKit's
-  `NSTextAlignmentNatural` resolves against the *device's* preferred language,
+  `NSTextAlignmentNatural` resolves against the _device's_ preferred language,
   so an Arabic install on an English phone put the caret at the left edge of
   every field — the same shape of bug as the `'auto'` one above, one component
   over. `isLTR` now controls only `writingDirection`: an address, a phone
   number and a dinar amount still read left to right inside the box, and the
   box sits at the reading edge of the language around it.
 - **`directionStyle`** (announcements, 14.11) was mirrored the wrong way and
-  was therefore *reversing* per-message direction under RTL: an Arabic notice
+  was therefore _reversing_ per-message direction under RTL: an Arabic notice
   rendered flush left and an English one flush right, which is the one outcome
   14.11 exists to prevent. It now takes the layout direction as an argument;
   the tests drive both layouts.
@@ -1422,7 +1422,7 @@ rewrites a historical figure. Verified against production after the migration:
 the view agreed with the old three-column sum on all 40 existing sessions, so
 no reported number moved.
 
-`recompute_night_costs` (0017) is deliberately *not* aware of the overrides. It
+`recompute_night_costs` (0017) is deliberately _not_ aware of the overrides. It
 keeps dividing the night's rent across the night's sessions and writing the
 `*_share_fils` columns, which is what makes a correction survive another
 session being added to or cancelled from the same night — a single column would
@@ -1453,16 +1453,16 @@ could report it. Both fields are now `FormNumericInput`, which normalises at
 the point of entry, and both previews go through the new `parseFils`, which
 answers `null` for a value that is not a number yet. The schemas are unchanged.
 
-`CreateSessionScreen`'s submit is deliberately *not* disabled on
+`CreateSessionScreen`'s submit is deliberately _not_ disabled on
 `formState.isValid`, unlike 14.2's sign up: on a seven-field form a disabled
 button says something is wrong and not what, whereas tapping it runs the
 resolver over every field and puts a message under each one that needs it.
 
 ### The profile screen is now role-aware — A28
 
-A28 mounts 14.12's profile under the staff *More* stack as well. Three sections
-now differ, on client instruction: credits and subscriptions and *Message the
-coach* are the player's alone, and the notification-permission section is
+A28 mounts 14.12's profile under the staff _More_ stack as well. Three sections
+now differ, on client instruction: credits and subscriptions and _Message the
+coach_ are the player's alone, and the notification-permission section is
 staff-only. The role comes from `useMyProfile`, which the screen already reads.
 
 `LanguageSheet.tsx` is added to `whatsappCoverage.test.tsx`'s exempt list. It is
@@ -1473,7 +1473,7 @@ the affordance itself.
 
 0038 added `add_rotation` for A15's seventh round and had no inverse; a night
 does not always run the number of rounds it was planned for. `remove_rotation`
-(0042) deletes the round the chips are showing — *any* round, per the
+(0042) deletes the round the chips are showing — _any_ round, per the
 instruction, not only the last — and closes the gap so the indexes stay
 contiguous from 1.
 
@@ -1486,17 +1486,16 @@ Regenerate is there if he wants 13.2's alternation to line up again.
 ### Two migrations were applied through the management API, not `db push` — closed
 
 0042 and 0043 were applied to `pob-prod` directly, at the client's instruction.
-The CLI could not be used *for the remote*: `db push` and `migration list`
+The CLI could not be used _for the remote_: `db push` and `migration list`
 hang on their database-password prompt in a non-interactive shell,
-indefinitely and with no output, though the database host itself answers on
-5432. `supabase migration up --local` needs no password and works normally —
+indefinitely and with no output, though the database host itself answers on 5432. `supabase migration up --local` needs no password and works normally —
 it is only the remote connection that is unreachable this way. The management
 API stamps a timestamp version rather than this repository's `0001..`
 numbering, so both rows were renamed to `0042` and `0043` afterwards.
 
 **Both databases had to be told, and only one was, at first.** `.env` points
 `EXPO_PUBLIC_SUPABASE_URL` at `http://127.0.0.1:54321` — the app in the
-simulator talks to the *local* stack, not to `pob-prod` — so applying only to
+simulator talks to the _local_ stack, not to `pob-prod` — so applying only to
 the remote left every new object missing from the database actually under
 development. Deleting a rotation returned a PostgREST "function not found",
 which `sessionErrorMessageKey` has no code for and which therefore surfaced as
@@ -1504,7 +1503,7 @@ which `sessionErrorMessageKey` has no code for and which therefore surfaced as
 Closed with `supabase migration up --local`; both databases now hold all 44.
 
 That renaming left one artefact, and closing it needed a decision rather than a
-delete. The API records a migration *after* running its query, so no migration
+delete. The API records a migration _after_ running its query, so no migration
 can remove its own row — the renaming run tried, and its delete ran before the
 row existed. Another migration to delete it would have left another row in its
 place, and so on; through this API the steady state is always exactly one
@@ -1533,7 +1532,7 @@ could have established, and two of them were bugs the suite was green through.
 - **The app name.** `Badminton.app` installed, `CFBundleDisplayName` read back
   from the installed bundle as `Badminton`, with `PRODUCT_BUNDLE_IDENTIFIER`
   still `jo.professionalofbadminton.app` and the `pob` URL scheme intact. The
-  rename had to be verified on the *installed binary*, not in `app.config.ts`,
+  rename had to be verified on the _installed binary_, not in `app.config.ts`,
   because the label lives in the native project and `app.config.ts` is only a
   source for it — which is precisely how it was missed the first time.
 - **The welcome screen.** The drifting shuttlecocks and sport icons read as
@@ -1559,7 +1558,7 @@ device with a reachable inspector would settle it in one expression.
 **Still unlooked-at from this pass**, and none of it is covered by the entries
 in "Verification debt" above because none of it existed then: the session cost
 card and its two sheets (10.2's money tab), deleting a round from 13.10's court
-board *through the UI* rather than through the RPC, the 50/50 pay row and its
+board _through the UI_ rather than through the RPC, the 50/50 pay row and its
 "back to unpaid" link, the three stacked add buttons on 15.2, the language
 sheet on 14.12, the pinned contact bar on 14.11, the 12 hour time wheel on 15.4
 and 15.6, and the numeric date format everywhere it appears. Every one of those
@@ -1584,7 +1583,7 @@ I18nManager.allowRTL(shouldBeRTL);
 if (I18nManager.isRTL !== shouldBeRTL) I18nManager.forceRTL(shouldBeRTL);
 ```
 
-`forceRTL` only takes effect on the *next* launch. `useChangeLanguage` handles
+`forceRTL` only takes effect on the _next_ launch. `useChangeLanguage` handles
 that for a language the player switches to, with a restart and a sentence
 explaining it — but nothing handles the cold start where the stored native
 direction already disagrees with the resolved locale. A fresh install in Arabic
@@ -1593,7 +1592,7 @@ the wrong way.
 
 **This is the common cause of three separate reports in this pass** — English
 labels on the right, announcements reversed, and inputs starting on the wrong
-edge. All three were closed by making the *text* independent of the flag
+edge. All three were closed by making the _text_ independent of the flag
 (`theme.alignStart`, `theme.inputAlignStart`, `directionStyle`'s new argument),
 which is worth having regardless. What remains exposed is everything
 positional: header back buttons, row order, the password reveal control, and
@@ -1609,7 +1608,7 @@ reload exists to correct.
 The reload loop this entry warned about is guarded by
 `DIRECTION_RELOAD_STORAGE_KEY`, an AsyncStorage marker recording the direction
 already attempted, rather than a module-level flag the reload would reset. It
-records the *direction*, not merely "tried", so a genuine later switch still
+records the _direction_, not merely "tried", so a genuine later switch still
 reloads. Every way the guard could fail to be durable — storage unreadable,
 unwritable, or the reload itself refused — gives the reload up rather than
 risking the loop: one wrongly mirrored session is a blemish, an app that never
@@ -1622,7 +1621,7 @@ one implementation instead of two copies drifting apart.
 Held by ten cases in `src/i18n/__tests__/layoutDirection.test.ts`: the fresh
 Arabic install that motivated the entry, the two directions that need no
 action, the guard being cleared once the direction takes, the second launch
-that must *not* reload again, the opposite-direction switch that still must,
+that must _not_ reload again, the opposite-direction switch that still must,
 and each of the four failure paths starting the app rather than hanging on the
 splash.
 

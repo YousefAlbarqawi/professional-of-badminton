@@ -136,9 +136,7 @@ export const Button: React.FC<ButtonProps> = ({
           { opacity: isLoading ? 0 : 1 },
         ]}
       >
-        {icon === undefined ? null : (
-          <Icon name={icon} size={18} color={palette.label} />
-        )}
+        {icon === undefined ? null : <Icon name={icon} size={18} color={palette.label} />}
         <Text
           variant="body"
           weight="600"

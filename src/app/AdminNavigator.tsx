@@ -75,7 +75,11 @@ function makeTabBarIcon(
     size: number;
   }): React.ReactElement {
     return (
-      <Icon name={focused ? TAB_ICONS[tab].active : TAB_ICONS[tab].inactive} color={color} size={size} />
+      <Icon
+        name={focused ? TAB_ICONS[tab].active : TAB_ICONS[tab].inactive}
+        color={color}
+        size={size}
+      />
     );
   }
   return TabBarIcon;
@@ -257,7 +261,11 @@ export const AdminNavigator: React.FC = () => {
       <Tabs.Screen
         name="Today"
         component={TodayNavigator}
-        options={{ title: t('tabs.today'), headerShown: false, tabBarIcon: makeTabBarIcon('Today') }}
+        options={{
+          title: t('tabs.today'),
+          headerShown: false,
+          tabBarIcon: makeTabBarIcon('Today'),
+        }}
       />
       <Tabs.Screen
         name="AdminSchedule"

@@ -622,10 +622,7 @@ describe('changing a player’s tier', () => {
     expect(screen.getByTestId('change-tier-sheet')).toBeTruthy();
     await fireEvent.press(screen.getByTestId('change-tier-picker-A+'));
 
-    expect(mockSetTier).toHaveBeenCalledWith(
-      { playerId: 'p1', tier: 'A+' },
-      expect.anything(),
-    );
+    expect(mockSetTier).toHaveBeenCalledWith({ playerId: 'p1', tier: 'A+' }, expect.anything());
   });
 
   it('closes the sheet once the write succeeds', async () => {

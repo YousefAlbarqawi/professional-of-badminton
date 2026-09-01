@@ -56,7 +56,12 @@ export const LanguageSheet: React.FC<LanguageSheetProps> = ({
   );
 
   return (
-    <Sheet isVisible={isVisible} title={t('language.label')} onClose={onClose} testID="language-sheet">
+    <Sheet
+      isVisible={isVisible}
+      title={t('language.label')}
+      onClose={onClose}
+      testID="language-sheet"
+    >
       {OPTIONS.map(({ locale, labelKey }) => {
         const isCurrent = locale === current;
 

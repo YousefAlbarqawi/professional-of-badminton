@@ -19,9 +19,7 @@
  */
 import React, { useCallback, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
-import DateTimePicker, {
-  type DateTimePickerEvent,
-} from '@react-native-community/datetimepicker';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 
 import { formatSessionDate, ammanDayStart, dayKeyToCalendarDate, nowInAmman } from '@/lib/time';

@@ -7,12 +7,7 @@
  */
 import { AuthError } from '@supabase/supabase-js';
 
-import {
-  EmailInUseError,
-  InvalidCodeError,
-  authErrorMessageKey,
-  toAppAuthError,
-} from '../errors';
+import { EmailInUseError, InvalidCodeError, authErrorMessageKey, toAppAuthError } from '../errors';
 
 function authError(message: string, code?: string): AuthError {
   return new AuthError(message, 400, code);
@@ -73,7 +68,7 @@ describe('EmailInUseError', () => {
 });
 
 describe('a rejected confirmation code', () => {
-  it.each(['otp_expired', 'otp_disabled'])('maps GoTrue\'s %s code', (code) => {
+  it.each(['otp_expired', 'otp_disabled'])("maps GoTrue's %s code", (code) => {
     const error = new AuthError('Token has expired or is invalid', 403, code);
     expect(toAppAuthError(error).code).toBe('invalid_code');
     expect(authErrorMessageKey(error)).toBe('error.invalidCode');

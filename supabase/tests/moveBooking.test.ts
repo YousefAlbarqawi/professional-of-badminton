@@ -40,7 +40,10 @@ async function move(
     p_booking_id: bookingId,
     p_target_session_id: targetSessionId,
   });
-  return { newId: error === null ? data : null, error: error === null ? null : error.message.trim() };
+  return {
+    newId: error === null ? data : null,
+    error: error === null ? null : error.message.trim(),
+  };
 }
 
 beforeAll(async () => {
@@ -87,7 +90,10 @@ describe('what moves and what does not', () => {
       method: 'cash',
       expectedFils: 6000,
     });
-    await serviceClient().from('bookings').update({ paid_fils: 6000, payment_status: 'paid' }).eq('id', bookingId);
+    await serviceClient()
+      .from('bookings')
+      .update({ paid_fils: 6000, payment_status: 'paid' })
+      .eq('id', bookingId);
 
     const result = await move(coach, bookingId, to.id);
     expect(result.error).toBeNull();

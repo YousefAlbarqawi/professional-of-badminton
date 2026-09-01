@@ -51,7 +51,11 @@ import {
   useSessionCosts,
   useSetSessionCosts,
 } from '@/features/sessions/costQueries';
-import { EXTRA_COST_KINDS, type ExtraCostKind, type SessionCosts } from '@/features/sessions/costTypes';
+import {
+  EXTRA_COST_KINDS,
+  type ExtraCostKind,
+  type SessionCosts,
+} from '@/features/sessions/costTypes';
 import { sessionErrorMessageKey } from '@/features/sessions/errors';
 import { fils, formatMoney, toJD, type Fils } from '@/lib/money';
 import { useTheme } from '@/theme';
@@ -159,12 +163,7 @@ export const SessionCostsCard: React.FC<SessionCostsCardProps> = ({ sessionId, c
           {t('admin.costs.title')}
         </Text>
         {canEdit ? (
-          <Button
-            label={t('common.edit')}
-            onPress={openEdit}
-            variant="ghost"
-            testID="costs-edit"
-          />
+          <Button label={t('common.edit')} onPress={openEdit} variant="ghost" testID="costs-edit" />
         ) : null}
       </View>
 

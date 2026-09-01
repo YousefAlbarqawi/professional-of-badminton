@@ -62,7 +62,13 @@ import {
 } from '@/features/sessions/schemas';
 import type { VenueOption } from '@/features/sessions/types';
 import { fils, formatMoney, parseFils } from '@/lib/money';
-import { ammanDayKey, ammanDayStart, formatClockTime, formatSessionDate, nowInAmman } from '@/lib/time';
+import {
+  ammanDayKey,
+  ammanDayStart,
+  formatClockTime,
+  formatSessionDate,
+  nowInAmman,
+} from '@/lib/time';
 import { useTheme } from '@/theme';
 import type { AdminScheduleStackParamList } from '@/app/types';
 

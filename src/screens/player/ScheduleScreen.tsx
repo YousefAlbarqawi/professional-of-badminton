@@ -15,7 +15,13 @@
  * schedule, which really is ninety rows, uses FlashList.
  */
 import React, { useCallback } from 'react';
-import { RefreshControl, SectionList, StyleSheet, View, type ListRenderItemInfo } from 'react-native';
+import {
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  View,
+  type ListRenderItemInfo,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 

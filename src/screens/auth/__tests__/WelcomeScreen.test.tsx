@@ -88,9 +88,7 @@ describe('the backdrop is decoration and nothing else', () => {
     const screen = await renderScreen();
 
     expect(screen.queryByTestId('welcome-backdrop')).toBeNull();
-    expect(
-      screen.getByTestId('welcome-backdrop', { includeHiddenElements: true }),
-    ).toBeTruthy();
+    expect(screen.getByTestId('welcome-backdrop', { includeHiddenElements: true })).toBeTruthy();
   });
 
   it('never takes a touch', async () => {

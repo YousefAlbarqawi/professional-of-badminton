@@ -88,9 +88,7 @@ describe('get_sessions_money_summary, 15.1’s card', () => {
     });
 
     expect(error).toBeNull();
-    expect(data).toEqual([
-      { session_id: empty.id, collected_fils: 0, outstanding_fils: 0 },
-    ]);
+    expect(data).toEqual([{ session_id: empty.id, collected_fils: 0, outstanding_fils: 0 }]);
   });
 
   it('is readable by an admin, matching 0027’s own gate. D16', async () => {

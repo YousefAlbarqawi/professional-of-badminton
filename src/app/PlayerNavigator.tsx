@@ -51,7 +51,11 @@ function makeTabBarIcon(
     size: number;
   }): React.ReactElement {
     return (
-      <Icon name={focused ? TAB_ICONS[tab].active : TAB_ICONS[tab].inactive} color={color} size={size} />
+      <Icon
+        name={focused ? TAB_ICONS[tab].active : TAB_ICONS[tab].inactive}
+        color={color}
+        size={size}
+      />
     );
   }
   return TabBarIcon;

@@ -35,11 +35,13 @@ describe('add_rotation', () => {
     return offsetDayKey(data as unknown as string, offsetDays);
   }
 
-  async function makeSession(overrides: {
-    rotationCount?: number;
-    status?: 'scheduled' | 'locked' | 'cancelled';
-    offsetDays?: number;
-  } = {}): Promise<string> {
+  async function makeSession(
+    overrides: {
+      rotationCount?: number;
+      status?: 'scheduled' | 'locked' | 'cancelled';
+      offsetDays?: number;
+    } = {},
+  ): Promise<string> {
     const { data, error } = await coach.rpc('create_one_off_session', {
       p_venue_id: VENUES.khalda,
       p_session_date: await futureDate(overrides.offsetDays ?? 45),
@@ -54,7 +56,9 @@ describe('add_rotation', () => {
 
     if (overrides.rotationCount !== undefined || overrides.status !== undefined) {
       const update: SessionInstanceUpdate = {
-        ...(overrides.rotationCount === undefined ? {} : { rotation_count: overrides.rotationCount }),
+        ...(overrides.rotationCount === undefined
+          ? {}
+          : { rotation_count: overrides.rotationCount }),
         ...(overrides.status === undefined ? {} : { status: overrides.status }),
       };
       const { error: updateError } = await service

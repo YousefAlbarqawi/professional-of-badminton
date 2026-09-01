@@ -132,8 +132,7 @@ describe('2.5, the values that have a working default', () => {
   it('reports the reset URL once it is set', () => {
     const loaded = loadConfig({
       EXPO_PUBLIC_ENVIRONMENT: 'development',
-      EXPO_PUBLIC_PASSWORD_RESET_URL:
-        'https://professionalofbadminton.com/reset-password/',
+      EXPO_PUBLIC_PASSWORD_RESET_URL: 'https://professionalofbadminton.com/reset-password/',
     });
 
     expect(loaded.hasPasswordResetUrl).toBe(true);

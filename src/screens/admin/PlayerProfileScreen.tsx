@@ -715,7 +715,8 @@ const CustomRateSection: React.FC<CustomRateSectionProps> = ({ playerId, identit
   const [standardText, setStandardText] = useState(() => toText(identity.customRateStandardFils));
   const [extendedText, setExtendedText] = useState(() => toText(identity.customRateExtendedFils));
 
-  const toFilsOrNull = (text: string): Fils | null => (text.trim() === '' ? null : fils(Number(text)));
+  const toFilsOrNull = (text: string): Fils | null =>
+    text.trim() === '' ? null : fils(Number(text));
 
   const isDirty =
     standardText !== toText(identity.customRateStandardFils) ||

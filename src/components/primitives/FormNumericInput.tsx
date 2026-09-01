@@ -20,8 +20,10 @@ import { useTranslation } from 'react-i18next';
 
 import { NumericInput, type NumericInputProps } from './NumericInput';
 
-export interface FormNumericInputProps<TValues extends FieldValues>
-  extends Omit<NumericInputProps, 'value' | 'onChangeText' | 'errorMessage' | 'onBlur'> {
+export interface FormNumericInputProps<TValues extends FieldValues> extends Omit<
+  NumericInputProps,
+  'value' | 'onChangeText' | 'errorMessage' | 'onBlur'
+> {
   control: Control<TValues>;
   name: FieldPath<TValues>;
 }

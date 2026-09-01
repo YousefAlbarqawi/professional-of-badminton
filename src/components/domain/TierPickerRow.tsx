@@ -51,10 +51,7 @@ export const TierPickerRow: React.FC<TierPickerRowProps> = ({
   const theme = useTheme();
 
   return (
-    <View
-      style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs }}
-      testID={testID}
-    >
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs }} testID={testID}>
       <Chip
         label={t('tiers.unrated')}
         isOn={value === null}

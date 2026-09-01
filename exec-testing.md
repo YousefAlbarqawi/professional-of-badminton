@@ -5,6 +5,7 @@ physical-device driving isn't supported by execbro's tap/swipe/type automation, 
 simulators, so a dev-client build was used instead of the physical iPhone 11.
 
 ## Setup notes / environment gotchas
+
 - Custom dev-client build required (native modules: reanimated, flash-list,
   image-picker, datetimepicker, haptics — Expo Go doesn't work).
 - First build failed on disk space; after cleanup, hit a Sentry `SENTRY_ORG`
@@ -20,6 +21,7 @@ simulators, so a dev-client build was used instead of the physical iPhone 11.
 ## Bugs found and fixed
 
 ### Critical (backend correctness)
+
 - **Session Manage's Players tab and Money tab were completely broken on every
   session.** PostgREST `PGRST201` — ambiguous embed because `bookings` has 3 FKs to
   `profiles` (`player_id`, `created_by`, `cancelled_by`), and `fetchSessionRoster` +
@@ -28,7 +30,7 @@ simulators, so a dev-client build was used instead of the physical iPhone 11.
   integration suite (542/543 pass — the 1 failure was a false positive from manual
   test booking data, not a regression).
 - **Every non-centered piece of Arabic text in the entire app was left-aligned
-  instead of right-aligned.** `textAlign: 'auto'` resolves via the *device's* OS
+  instead of right-aligned.** `textAlign: 'auto'` resolves via the _device's_ OS
   locale (`NSTextAlignment.natural`), not the app's own `I18nManager.isRTL` flag —
   invisible in unit tests, only shows up on a real device/simulator with a
   non-Arabic OS locale, which is exactly this app's real-world scenario (Arabic by
@@ -40,6 +42,7 @@ simulators, so a dev-client build was used instead of the physical iPhone 11.
   OPEN-ITEMS.md.
 
 ### UI / functional
+
 - Tab bar icons were never wired up — React Navigation's `MissingIcon` debug
   triangle rendered on every tab, both navigators. Added `@expo/vector-icons`
   (Expo's own official package, recorded as a BUILD-SPEC §2.1 amendment matching the
@@ -69,6 +72,7 @@ All changes: typecheck clean, lint clean, full Jest suite 1184/1184 passing, DB
 integration suite 542/543 (the 1 non-regression noted above).
 
 ## Verified working correctly
+
 - Full player booking flow (cash / CliQ / credit), cancellation, subscriptions
 - Sign-in / sign-up / sign-out
 - Language switching with a true native RTL relaunch (tab bar mirrors, chevrons
@@ -101,7 +105,7 @@ integration suite 542/543 (the 1 non-regression noted above).
   Arabic+digit string in source order inside the app's ambient RTL layout —
   `isolateLTR()` (already used for phone/email, BUILD-SPEC 16.2) is what
   actually fixes that; and (2) even inside that isolate, bidi rule W2
-  reclassifies a year immediately following an Arabic month as an *Arabic*
+  reclassifies a year immediately following an Arabic month as an _Arabic_
   number (searches backward for the nearest strong character, finds the
   month) and renders it on the wrong side — fixed with an invisible LRM
   right before the day/year-separating space, added as a local
@@ -119,7 +123,7 @@ integration suite 542/543 (the 1 non-regression noted above).
   venue, date, or time without resubmitting** — reproduced directly:
   submitting a conflicting slot showed the error; switching to a different,
   genuinely free venue kept showing the same stale error text even though
-  the *next* submit succeeded (confirmed a session was created in Postgres
+  the _next_ submit succeeded (confirmed a session was created in Postgres
   while the error was still on screen). Fixed by resetting `submitError`
   whenever venue/date/time change, using React's "adjust state during
   render" pattern (not a `useEffect`, which `react-hooks/set-state-in-effect`
@@ -130,6 +134,7 @@ integration suite 542/543 (the 1 non-regression noted above).
 All changes: typecheck clean, lint clean, full Jest suite 1184/1184.
 
 ## Court board (drag/swap/lock) — verified working correctly
+
 Tap-to-select-then-tap-to-swap between courts, undo, long-press to lock/
 unlock a court, swap correctly refused into a locked court with a clear
 error toast, "Add rotation" and "Regenerate" both show the expected
@@ -138,6 +143,7 @@ rules. Rotation rule cycling (odd → similar-levels, even → mixed) confirmed
 intentional by reading `engine.ts`, not a bug.
 
 ## Announcement compose → publish — verified working correctly
+
 Full round trip tested: typed a message with quotes/ampersand/percent
 (non-ASCII and emoji can't be typed through execbro's native keyboard driver
 without a Metro/fiber connection, which wasn't available this session — not
@@ -167,7 +173,7 @@ pulls to refresh, both of which are ordinary usage, not workarounds.
   access (the system prompt's copy is correct and specific), picked a photo
   through the native picker, saw the attached-image preview with a Replace
   option, confirmed the booking. Verified server-side: `bookings.payment_method
-  = 'cliq'`, `payment_status = 'unpaid'` (correctly pending coach review),
+= 'cliq'`, `payment_status = 'unpaid'` (correctly pending coach review),
   occupancy count updated live, and the screenshot itself landed in the
   private `payment-proofs` storage bucket named by booking ID. My Bookings
   correctly shows the CliQ chip on the booking. One venue in seed data has no
@@ -192,5 +198,6 @@ pulls to refresh, both of which are ordinary usage, not workarounds.
   rather than hard-deleted, preserving historical session data as promised.
 
 ## Not yet tested
+
 - Grant/adjust subscription flows (beyond the stale-error class of bug
   already fixed and confirmed in `CreateSessionScreen`/`SessionEditScreen`)

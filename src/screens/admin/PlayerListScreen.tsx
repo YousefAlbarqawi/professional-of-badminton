@@ -347,10 +347,7 @@ export const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
           onEndReachedThreshold={0.5}
           ListFooterComponent={
             directory.isFetchingNextPage ? (
-              <View
-                testID="player-list-loading-more"
-                style={{ paddingVertical: theme.spacing.md }}
-              >
+              <View testID="player-list-loading-more" style={{ paddingVertical: theme.spacing.md }}>
                 <Skeleton height={56} radius="md" />
               </View>
             ) : null

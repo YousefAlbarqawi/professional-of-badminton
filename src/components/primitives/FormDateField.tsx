@@ -10,8 +10,10 @@ import { useTranslation } from 'react-i18next';
 
 import { DateField, type DateFieldProps } from './DateField';
 
-export interface FormDateFieldProps<TValues extends FieldValues>
-  extends Omit<DateFieldProps, 'value' | 'onChange' | 'errorMessage'> {
+export interface FormDateFieldProps<TValues extends FieldValues> extends Omit<
+  DateFieldProps,
+  'value' | 'onChange' | 'errorMessage'
+> {
   control: Control<TValues>;
   name: FieldPath<TValues>;
 }

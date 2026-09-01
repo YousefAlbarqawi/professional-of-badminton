@@ -649,10 +649,7 @@ describe('15.8 section 8, role', () => {
     expect(mockSetRole).not.toHaveBeenCalled();
 
     await fireEvent.press(screen.getByTestId('role-change-dialog-confirm'));
-    expect(mockSetRole).toHaveBeenCalledWith(
-      { playerId: 'p1', role: 'coach' },
-      expect.anything(),
-    );
+    expect(mockSetRole).toHaveBeenCalledWith({ playerId: 'p1', role: 'coach' }, expect.anything());
   });
 
   it('offers Demote, destructively styled, for an existing coach', async () => {
@@ -665,9 +662,6 @@ describe('15.8 section 8, role', () => {
     await fireEvent.press(screen.getByTestId('profile-role-toggle'));
     await fireEvent.press(screen.getByTestId('role-change-dialog-confirm'));
 
-    expect(mockSetRole).toHaveBeenCalledWith(
-      { playerId: 'p1', role: 'player' },
-      expect.anything(),
-    );
+    expect(mockSetRole).toHaveBeenCalledWith({ playerId: 'p1', role: 'player' }, expect.anything());
   });
 });

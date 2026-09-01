@@ -33,7 +33,8 @@ export const TierChangeRow: React.FC<TierChangeRowProps> = ({
   const { t } = useTranslation();
   const theme = useTheme();
 
-  const label = (tier: Tier | null): string => (tier === null ? t('tiers.unrated') : t(tierLabelKey(tier)));
+  const label = (tier: Tier | null): string =>
+    tier === null ? t('tiers.unrated') : t(tierLabelKey(tier));
 
   return (
     <View

@@ -59,8 +59,7 @@ export function normaliseName(raw: string): string {
  * name. Tatweel (U+0640) is excluded for the same reason — it is a stretching
  * mark, not a letter.
  */
-const NAME_PATTERN =
-  /^[A-Za-z\u00C0-\u024F\u0621-\u063A\u0641-\u0652\u0671-\u06D3\s'\u2019-]+$/;
+const NAME_PATTERN = /^[A-Za-z\u00C0-\u024F\u0621-\u063A\u0641-\u0652\u0671-\u06D3\s'\u2019-]+$/;
 
 /** At least one actual letter — " - " is punctuation, not a name. */
 const NAME_HAS_LETTER = /[A-Za-z\u00C0-\u024F\u0621-\u063A\u0641-\u064A\u0671-\u06D3]/;

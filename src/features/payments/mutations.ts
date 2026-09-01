@@ -155,11 +155,7 @@ export interface SetPlayerVisibilityInput {
 }
 
 /** 15.8 section 3. */
-export function useSetPlayerVisibility(): UseMutationResult<
-  void,
-  Error,
-  SetPlayerVisibilityInput
-> {
+export function useSetPlayerVisibility(): UseMutationResult<void, Error, SetPlayerVisibilityInput> {
   const invalidate = useInvalidateAfterProfileEdit();
 
   return useMutation({

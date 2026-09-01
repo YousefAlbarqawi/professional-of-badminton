@@ -47,9 +47,7 @@ describe('closed', () => {
   it('shows the current value, formatted, and no wheel', async () => {
     const screen = await renderWithProviders(<Controlled initial="2026-08-24" />);
 
-    expect(screen.getByTestId('date-field-value').children.join('')).toBe(
-      isolateLTR('24/8/2026'),
-    );
+    expect(screen.getByTestId('date-field-value').children.join('')).toBe(isolateLTR('24/8/2026'));
     expect(screen.queryByTestId('date-field-native')).toBeNull();
   });
 });
@@ -61,13 +59,16 @@ describe('iOS, the default test platform', () => {
     await fireEvent.press(screen.getByTestId('date-field'));
     expect(screen.getByTestId('date-field-native')).toBeTruthy();
 
-    await fireEvent(screen.getByTestId('date-field-native'), 'change', { type: 'set' }, new Date(2026, 8, 1));
+    await fireEvent(
+      screen.getByTestId('date-field-native'),
+      'change',
+      { type: 'set' },
+      new Date(2026, 8, 1),
+    );
 
     // Committed without pressing Done — the spinner has no separate confirm.
     expect(onChange).toHaveBeenCalledWith('2026-09-01');
-    expect(screen.getByTestId('date-field-value').children.join('')).toBe(
-      isolateLTR('1/9/2026'),
-    );
+    expect(screen.getByTestId('date-field-value').children.join('')).toBe(isolateLTR('1/9/2026'));
   });
 
   it('closes the wheel on Done without changing the value again', async () => {
@@ -109,7 +110,12 @@ describe('Android', () => {
     await fireEvent.press(screen.getByTestId('date-field'));
     expect(screen.getByTestId('date-field-native')).toBeTruthy();
 
-    await fireEvent(screen.getByTestId('date-field-native'), 'change', { type: 'set' }, new Date(2026, 8, 1));
+    await fireEvent(
+      screen.getByTestId('date-field-native'),
+      'change',
+      { type: 'set' },
+      new Date(2026, 8, 1),
+    );
 
     expect(onChange).toHaveBeenCalledWith('2026-09-01');
     // The system dialog is gone on its own; there is no Done button to press.
