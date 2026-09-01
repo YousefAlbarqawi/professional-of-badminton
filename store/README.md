@@ -188,9 +188,8 @@ is actually blocked on, which is not the same as what is unchecked here.
 - [x] `eas build --profile production --platform ios` — done, 2026-09-01.
       Version 1.0.0, build number 4, from commit `a942c0e` (build
       `315657f2-d310-468e-9f7d-40dc1f2bd458`)
-- [ ] Smoke test on a physical iOS device and a physical Android device,
-      against prod. Still not done on either platform, and still the last thing
-      standing between the reviewers' verdict and real players
+- [x] Smoke test on a physical iOS device and a physical Android device,
+      against prod — done, confirmed by the client
 - [x] Privacy policy URL (`https://professionalofbadminton.com/privacy-policy/`)
       entered in App Store Connect and in Play Console
 - [x] Play data safety form completed from `play-data-safety.md` — seven data
@@ -244,8 +243,8 @@ needed, and the fourteen days start when they opt in, not when the track was
 created.
 
 **The App Store release is deliberately manual.** Apple approving the version
-will not put it on sale; the release has to be triggered by hand, which is what
-makes the physical-device smoke test above still worth doing.
+will not put it on sale; the release has to be triggered by hand, so approval
+and launch are two separate decisions rather than one.
 
 Both stores are restricted to Jordan. On the App Store that is not only a match
 for the academy: distributing in the EU requires a Digital Services Act trader
