@@ -34,6 +34,13 @@ const config: ExpoConfig = {
       // Without this, a device set to Arabic falls back to the base
       // localisation and reads the English string. 23.3.
       CFBundleAllowMixedLocalizations: true,
+      // Declared once here rather than answered by hand on every submission.
+      // App Store Connect asks about export compliance for each build, and
+      // the answer never changes: the only cryptography in the app is HTTPS
+      // to Supabase and `expo-secure-store`'s use of the iOS keychain, both
+      // of which are the platform's own and exempt. Nothing here implements
+      // or bundles an encryption algorithm of its own.
+      ITSAppUsesNonExemptEncryption: false,
     },
   },
   // 23.3: "camera and photo library usage strings in both languages". Expo
