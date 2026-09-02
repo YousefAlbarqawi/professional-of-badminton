@@ -128,12 +128,26 @@ is actually blocked on, which is not the same as what is unchecked here.
       account URL** a required field for any app that lets users create an
       account and will not advance past the Data safety form without one; see
       `play-data-safety.md`, which used to claim this was not applicable
-- [ ] `pob-prod`'s Authentication → SMTP Settings pointed at Resend (see
-      "The production sender" below) — without it Supabase falls back to its
-      own shared SMTP, which is rate limited to a handful of mails an hour.
-      **This is now the most urgent item on the page.** It cost nothing while
-      prod had no users; it starts costing the moment the twelve closed-test
-      players sign up, because every one of them needs a confirmation mail
+- [x] `pob-prod`'s Authentication → SMTP Settings pointed at Resend (see
+      "The production sender" below). Done 2026-09-02: custom SMTP on,
+      `smtp.resend.com:465`, user `resend`, sending as
+      `noreply@professionalofbadminton.com` under the name "Professional of
+      Badminton". Verified end to end rather than by the form going green — a
+      real `/auth/v1/recover` call answered 200 and the message appears in
+      Resend's log with that From address, so GoTrue is genuinely reaching
+      Resend and not failing silently
+- [x] The **Confirm sign up** template pasted into the dashboard, byte for byte
+      from `supabase/templates/confirm.html`, so the two can be diffed. This
+      matters more than the sender did. Supabase locks template editing behind
+      custom SMTP, so until it was configured prod was serving GoTrue's default
+      body — `{{ .ConfirmationURL }}` and nothing else. The app's
+      `VerifyEmailScreen` asks for a six digit code, and **no code was being
+      sent at all**: every player would have found the code field useless and
+      had to fall back to the link and the poll. One fix closed both, because
+      the SMTP switch is what unlocks the template
+- [x] Auth email rate limit. Supabase raised it from **2 per hour** to 30 by
+      itself the moment custom SMTP was enabled. Two an hour would not have
+      onboarded twelve closed testers in an evening
 - [x] Version bumped in `app.config.ts`, build number incremented — 1.0.0 for
       the first release. `appVersionSource: "remote"` with `autoIncrement`
       carries both counters on EAS: Android version code 7, iOS build number 4
@@ -159,7 +173,14 @@ is actually blocked on, which is not the same as what is unchecked here.
       so the trigger created no profile — the `profiles` row was inserted by
       hand. Anyone repeating this must do the same or the account signs in to a
       broken app. Prod still holds zero bookings, subscriptions, payments and
-      announcements
+      announcements.
+      **That address has no mailbox.** It is on the verified domain, so mail
+      sent to it leaves Resend and then bounces — one such bounce is already in
+      the log, from the message used to prove SMTP works. It costs nothing
+      today, because the account was created auto-confirmed and a reviewer only
+      signs in. It would cost something if a reviewer ever used "forgot
+      password", and bounces are the thing that erodes a sending domain's
+      reputation, so add a forwarding rule at Namecheap or stop mailing it
 - [x] `pob-prod` cron jobs scheduled: all seven are active — `generate-sessions`
       (03:00 Amman), `lock-expired-sessions` (03:10), `void-expired-subscriptions`
       (03:20), `purge-payment-proofs` (04:00), `advance-session-states` and
@@ -361,8 +382,9 @@ record all live in Namecheap's Advanced DNS for the domain.
 
 Local Supabase reads that address from `.env`'s `SMTP_SENDER`, via
 `[auth.email.smtp]` in `supabase/config.toml`. **A hosted project does not read
-that file** — `pob-prod` has to be told the same thing by hand, in the Supabase
-dashboard under Authentication → SMTP Settings:
+that file** — `pob-prod` had to be told the same thing by hand, in the Supabase
+dashboard under Authentication → SMTP Settings. That is now done; the values
+below are what it holds:
 
 | Field       | Value                                 |
 | ----------- | ------------------------------------- |
