@@ -1,0 +1,24 @@
+<!--
+  BUILD-SPEC 14.5. The app's client uses PKCE, so the default
+  `{{ .ConfirmationURL }}` redirects to docs/reset-password with `?code=`,
+  which that page cannot exchange: the code verifier lives on the phone that
+  asked. It showed "This link has expired" for every reset.
+
+  `{{ .TokenHash }}` needs no verifier. The page POSTs it to /auth/v1/verify
+  from script, so a mail scanner prefetching the link does not consume it.
+-->
+<h2>Reset your password</h2>
+
+<p>Tap the link below to choose a new password for Professional of Badminton:</p>
+
+<p>
+  <a
+    href="https://professionalofbadminton.com/reset-password/?token_hash={{ .TokenHash }}&type=recovery"
+    >Reset password</a
+  >
+</p>
+
+<p>
+  The link expires in one hour. If you did not ask to reset your password, you can ignore this
+  message.
+</p>

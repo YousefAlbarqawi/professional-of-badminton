@@ -290,6 +290,13 @@ sender_name = "Professional of Badminton"
 subject = "Confirm your email address"
 content_path = "./supabase/templates/confirm.html"
 
+# BUILD-SPEC 14.5: the recovery link carries `token_hash`, not a PKCE `code`.
+# `supabase/templates/recovery.html` says why. As with confirmation, paste it
+# into Authentication > Emails > Reset password on pob-prod. See store/README.md.
+[auth.email.template.recovery]
+subject = "Reset your password"
+content_path = "./supabase/templates/recovery.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"

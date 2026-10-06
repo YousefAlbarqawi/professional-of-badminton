@@ -160,6 +160,7 @@
             confirmLabel: 'Confirm new password',
             submit: 'Set new password',
             submitting: 'Setting password…',
+            checking: 'Checking your link…',
             weak: 'At least 8 characters, with a letter and a number.',
             mismatch: 'Passwords do not match.',
             genericError: 'Something went wrong. Please try again.',
@@ -182,6 +183,7 @@
             confirmLabel: 'تأكيد كلمة المرور الجديدة',
             submit: 'تعيين كلمة المرور',
             submitting: 'جارٍ الحفظ…',
+            checking: 'جارٍ التحقق من الرابط…',
             weak: '8 أحرف على الأقل، تحتوي على حرف ورقم.',
             mismatch: 'كلمتا المرور غير متطابقتين.',
             genericError: 'حدث خطأ ما. حاول مرة أخرى.',
@@ -340,6 +342,51 @@
           });
         }
 
+        // The app signs in with PKCE (src/lib/supabase.ts), so a default recovery
+        // link arrives here as `?code=`, which only the app holding the verifier
+        // could exchange. supabase/templates/recovery.html links here with
+        // `?token_hash=` instead, and /verify trades that for a session in any
+        // browser. The `#access_token` branch keeps older links working.
+        function parseQueryParams() {
+          var params = new URLSearchParams(window.location.search);
+          if (params.has('token_hash')) {
+            window.history.replaceState(null, '', window.location.pathname);
+          }
+          return params;
+        }
+
+        var queryParams = parseQueryParams();
+        var state = 'loading';
+        var accessToken = null;
+
+        function resolveLink() {
+          var tokenHash = queryParams.get('token_hash');
+          if (tokenHash && queryParams.get('type') === 'recovery') {
+            fetch(supabaseUrl + '/auth/v1/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', apikey: anonKey },
+              body: JSON.stringify({ type: 'recovery', token_hash: tokenHash }),
+            })
+              .then(function (response) {
+                return response.ok ? response.json() : {};
+              })
+              .catch(function () {
+                return {};
+              })
+              .then(function (body) {
+                accessToken = body.access_token || null;
+                state = accessToken ? 'form' : 'invalid';
+                render();
+              });
+            return;
+          }
+
+          var hashError = hashParams.get('error');
+          accessToken = hashParams.get('access_token');
+          state =
+            !hashError && accessToken && hashParams.get('type') === 'recovery' ? 'form' : 'invalid';
+        }
+
         function render() {
           document.documentElement.lang = lang;
           document.documentElement.dir = t('dir');
@@ -351,15 +398,14 @@
             return;
           }
 
-          var accessToken = hashParams.get('access_token');
-          var type = hashParams.get('type');
-          var hashError = hashParams.get('error');
-
-          if (hashError || !accessToken || type !== 'recovery') {
+          if (state === 'loading') {
+            card.innerHTML = '<p class="subtitle">' + t('checking') + '</p>';
+            return;
+          }
+          if (state === 'invalid') {
             renderInvalid();
             return;
           }
-
           renderForm(accessToken);
         }
 
@@ -372,6 +418,7 @@
           render();
         });
 
+        if (supabaseUrl !== '' && anonKey !== '') resolveLink();
         render();
       })();
     </script>

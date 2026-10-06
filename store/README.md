@@ -145,6 +145,11 @@ is actually blocked on, which is not the same as what is unchecked here.
       sent at all**: every player would have found the code field useless and
       had to fall back to the link and the poll. One fix closed both, because
       the SMTP switch is what unlocks the template
+- [ ] The **Reset password** template pasted into the dashboard, byte for byte
+      from `supabase/templates/recovery.html`. Without it GoTrue sends
+      `{{ .ConfirmationURL }}`, which under the app's PKCE client lands on
+      docs/reset-password with a `?code=` the page cannot exchange, and every
+      reset shows "This link has expired"
 - [x] Auth email rate limit. Supabase raised it from **2 per hour** to 30 by
       itself the moment custom SMTP was enabled. Two an hour would not have
       onboarded twelve closed testers in an evening
