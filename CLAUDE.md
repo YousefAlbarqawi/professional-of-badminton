@@ -16,6 +16,10 @@ specification. This file only records conventions.
 - Row Level Security is the security boundary. Client-side filtering is
   presentation only, never protection.
 
+## Releasing
+Read RELEASING.md before publishing an OTA update or building the APK.
+Android ships as an APK from our website (docs/), not the Play Store.
+
 ## Before you finish a task
 - `npm run typecheck` passes
 - `npm run lint` passes

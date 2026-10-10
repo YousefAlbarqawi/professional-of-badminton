@@ -24,6 +24,14 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'dark',
   backgroundColor: '#111111',
   assetBundlePatterns: ['**/*'],
+  // Over-the-air JS updates via EAS Update. The APK is installed from our own
+  // website, not the Play Store, so this is how fixes reach those phones
+  // without a reinstall. `appVersion` keeps an update from landing on a build
+  // whose native code it doesn't match: any native change bumps `version`.
+  runtimeVersion: { policy: 'appVersion' },
+  updates: {
+    url: 'https://u.expo.dev/0fad5d1d-0baf-4ac3-a4f1-62256ce4a614',
+  },
   ios: {
     // Mobile only. No tablet layouts. D79.
     supportsTablet: false,
